@@ -1,28 +1,44 @@
-import { motion, useReducedMotion } from 'motion/react'
-import type { ReactNode } from 'react'
+import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react'
+import { useRef, type ReactNode } from 'react'
 
-/* Entrada de secao. Com movimento reduzido vira um cross fade curto,
-   nunca um deslize. */
+const narrow =
+  typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+
+/* Entrada de secao mais a deriva horizontal.
+   `drift` em pixels: o bloco entra deslocado para um lado e sai pelo outro,
+   no sentido contrario ao do solido 3D daquela secao. Sinal alternado entre
+   secoes vizinhas e o que faz os dois se cruzarem no meio do scroll.
+   Com movimento reduzido nao ha deriva nem deslize, so um cross fade curto. */
 export function Reveal({
   children,
   delay = 0,
   className,
+  drift = 0,
 }: {
   children: ReactNode
   delay?: number
   className?: string
+  drift?: number
 }) {
   const reduce = useReducedMotion()
+  const ref = useRef<HTMLDivElement>(null)
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ['start end', 'end start'],
+  })
+  const amount = drift * (narrow ? 0.35 : 1)
+  const x = useTransform(scrollYProgress, [0, 1], [amount, -amount])
+
   return (
     <motion.div
+      ref={ref}
       className={className}
+      style={reduce || !drift ? undefined : { x }}
       initial={reduce ? { opacity: 0 } : { opacity: 0, y: 22 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.25 }}
       transition={
-        reduce
-          ? { duration: 0.2 }
-          : { type: 'spring', bounce: 0, duration: 0.55, delay }
+        reduce ? { duration: 0.2 } : { type: 'spring', bounce: 0, duration: 0.55, delay }
       }
     >
       {children}
@@ -33,12 +49,14 @@ export function Reveal({
 export function SectionTitle({
   children,
   lead,
+  drift = 0,
 }: {
   children: ReactNode
   lead?: string
+  drift?: number
 }) {
   return (
-    <Reveal>
+    <Reveal drift={drift}>
       <h2 className="max-w-[22ch] text-3xl leading-[1.08] font-medium tracking-[-0.025em] text-ink md:text-5xl">
         {children}
       </h2>

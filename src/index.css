@@ -33,6 +33,10 @@ html {
 }
 
 body {
+  /* os blocos derivam na horizontal, entao a pagina nao pode ganhar
+     barra de rolagem lateral por causa disso. clip nao cria um novo
+     container de scroll, o que manteria o position sticky funcionando. */
+  overflow-x: clip;
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);

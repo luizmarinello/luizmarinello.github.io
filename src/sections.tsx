@@ -37,7 +37,7 @@ export function About({ lang }: { lang: Lang }) {
   return (
     <section id="sobre" className={`${wrap} py-28 md:py-40`}>
       <div className="grid items-center gap-10 md:grid-cols-12 md:gap-16">
-        <Reveal className="md:col-span-5">
+        <Reveal className="md:col-span-5" drift={-70}>
           {contact.photo ? (
             <img
               src={contact.photo}
@@ -50,8 +50,8 @@ export function About({ lang }: { lang: Lang }) {
           )}
         </Reveal>
         <div className="md:col-span-7">
-          <SectionTitle>{c.aboutTitle}</SectionTitle>
-          <Reveal delay={0.05}>
+          <SectionTitle drift={70}>{c.aboutTitle}</SectionTitle>
+          <Reveal delay={0.05} drift={70}>
             <p className="mt-6 max-w-[62ch] text-base leading-relaxed text-muted md:text-lg">
               {c.aboutBody}
             </p>
@@ -69,7 +69,7 @@ export function Projects({ lang }: { lang: Lang }) {
   return (
     <section id="projetos" className="py-24 md:py-32">
       <div className={wrap}>
-        <SectionTitle lead={c.projectsLead}>{c.projectsTitle}</SectionTitle>
+        <SectionTitle lead={c.projectsLead} drift={-60}>{c.projectsTitle}</SectionTitle>
       </div>
 
       <div className={`${wrap} mt-14 md:mt-20`}>
@@ -184,11 +184,11 @@ export function Ai({ lang }: { lang: Lang }) {
   const c = t[lang]
   return (
     <section id="ia" className={`${wrap} py-28 md:py-40`}>
-      <SectionTitle lead={c.aiLead}>{c.aiTitle}</SectionTitle>
+      <SectionTitle lead={c.aiLead} drift={60}>{c.aiTitle}</SectionTitle>
       <div className="mt-14 grid gap-12 md:grid-cols-12 md:gap-16">
-        <ol className="md:col-span-6">
+        <ol className="order-1 md:order-2 md:col-span-6">
           {aiSteps.map((s, i) => (
-            <Reveal key={i} delay={i * 0.05}>
+            <Reveal key={i} delay={i * 0.05} drift={-70}>
               <li className="relative flex gap-5 pb-9 last:pb-0">
                 <span
                   className="absolute top-6 bottom-0 left-[7px] w-px bg-line"
@@ -205,10 +205,8 @@ export function Ai({ lang }: { lang: Lang }) {
             </Reveal>
           ))}
         </ol>
-        <Reveal className="md:col-span-6" delay={0.1}>
-          <div className="md:sticky md:top-28">
-            <Replay lang={lang} />
-          </div>
+        <Reveal className="order-2 md:order-1 md:col-span-6" delay={0.1} drift={70}>
+          <Replay lang={lang} />
         </Reveal>
       </div>
     </section>
@@ -219,10 +217,10 @@ export function Stack({ lang }: { lang: Lang }) {
   const c = t[lang]
   return (
     <section className={`${wrap} py-20 md:py-28`}>
-      <SectionTitle>{c.stackTitle}</SectionTitle>
+      <SectionTitle drift={50}>{c.stackTitle}</SectionTitle>
       <div className="mt-10 grid gap-8">
         {stack.map((group, i) => (
-          <Reveal key={group.label.pt} delay={i * 0.05}>
+          <Reveal key={group.label.pt} delay={i * 0.05} drift={i % 2 ? 45 : -45}>
             <div className="grid gap-4 border-t border-line pt-6 md:grid-cols-12">
               <h3 className="font-mono text-xs tracking-wide text-muted md:col-span-3">
                 {pick(group.label, lang)}
@@ -244,7 +242,7 @@ export function Path({ lang }: { lang: Lang }) {
   const c = t[lang]
   return (
     <section id="trajetoria" className={`${wrap} py-24 md:py-32`}>
-      <SectionTitle>{c.pathTitle}</SectionTitle>
+      <SectionTitle drift={-50}>{c.pathTitle}</SectionTitle>
       <div className="mt-12 grid gap-px overflow-hidden rounded-[14px] border border-line bg-line">
         {timeline.map((item, i) => (
           <Reveal key={i} delay={i * 0.04}>
@@ -273,23 +271,12 @@ export function Certs({ lang }: { lang: Lang }) {
   const c = t[lang]
   return (
     <section className={`${wrap} py-20 md:py-28`}>
-      <SectionTitle>{c.certsTitle}</SectionTitle>
+      <SectionTitle drift={50}>{c.certsTitle}</SectionTitle>
       <div className="mt-10 grid gap-4 md:grid-cols-3">
         {certs.map((cert, i) => (
-          <Reveal key={i} delay={i * 0.05}>
+          <Reveal key={i} delay={i * 0.05} drift={(i - 1) * 55}>
             <Panel className="flex h-full flex-col justify-between gap-8 p-6">
-              {cert.slug ? (
-                <img
-                  src={`https://cdn.simpleicons.org/${cert.slug}/e8622f`}
-                  alt=""
-                  width={26}
-                  height={26}
-                  loading="lazy"
-                  className="h-[26px] w-[26px]"
-                />
-              ) : (
-                <span className="font-mono text-sm text-accent">EN</span>
-              )}
+              <span className="font-mono text-sm tracking-wide text-accent">{cert.mark}</span>
               <div>
                 <h3 className="text-base leading-snug font-medium text-ink">
                   {pick(cert.name, lang)}
@@ -315,7 +302,7 @@ export function Contact({ lang }: { lang: Lang }) {
 
   return (
     <section id="contato" className={`${wrap} py-32 text-center md:py-44`}>
-      <Reveal>
+      <Reveal drift={40}>
         <h2 className="mx-auto max-w-[14ch] text-4xl leading-[1.02] font-medium tracking-[-0.03em] text-ink md:text-7xl">
           {c.contactTitle}
         </h2>

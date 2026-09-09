@@ -10,7 +10,7 @@ export const contact = {
   photo: null as string | null, // ex.: 'luiz.jpg', arquivo dentro de public/
 }
 
-export const stack = [
+export const stack: { label: L<string>; items: { name: string; slug: string | null }[] }[] = [
   {
     label: { pt: 'Backend', en: 'Backend' },
     items: [
@@ -37,10 +37,10 @@ export const stack = [
   {
     label: { pt: 'Infra e dados', en: 'Infra and data' },
     items: [
-      { name: 'AWS', slug: 'amazonwebservices' },
+      { name: 'AWS', slug: null },
       { name: 'Docker', slug: 'docker' },
       { name: 'GitHub Actions', slug: 'githubactions' },
-      { name: 'Power BI', slug: 'powerbi' },
+      { name: 'Power BI', slug: null },
       { name: 'Claude API', slug: 'anthropic' },
     ],
   },
@@ -182,17 +182,17 @@ export const timeline = [
 export const certs = [
   {
     name: { pt: 'AWS Certified Developer, Associate', en: 'AWS Certified Developer, Associate' },
-    slug: 'amazonwebservices',
+    mark: 'AWS',
     note: { pt: 'Certificação oficial, com badge verificável.', en: 'Official certification, verifiable badge.' },
   },
   {
     name: { pt: 'AWS Certified Cloud Practitioner', en: 'AWS Certified Cloud Practitioner' },
-    slug: 'amazonwebservices',
+    mark: 'AWS',
     note: { pt: 'Certificação oficial, com badge verificável.', en: 'Official certification, verifiable badge.' },
   },
   {
     name: { pt: 'Inglês fluente', en: 'Fluent English' },
-    slug: null,
+    mark: 'CCAA',
     note: {
       pt: 'Certificado CCAA. Trabalho e faço entrevista em inglês, no fuso UTC-3.',
       en: 'CCAA certificate. I work and interview in English, on UTC-3.',

@@ -62,19 +62,19 @@ function Hero({ lang }: { lang: Lang }) {
     <section id="top" className="relative flex min-h-[100dvh] items-center pt-24">
       <div className={`${wrap} grid gap-10 md:grid-cols-12`}>
         <div className="md:col-span-7">
-          <Reveal>
+          <Reveal drift={55}>
             <h1 className="text-[clamp(2.2rem,4.6vw,3.8rem)] leading-[1.02] font-medium tracking-[-0.035em] text-ink">
               {c.heroTitleA}
               <br />
               <span className="text-accent">{c.heroTitleB}</span>
             </h1>
           </Reveal>
-          <Reveal delay={0.07}>
+          <Reveal delay={0.07} drift={55}>
             <p className="mt-7 max-w-[46ch] text-base leading-relaxed text-muted md:text-lg">
               {c.heroSub}
             </p>
           </Reveal>
-          <Reveal delay={0.14}>
+          <Reveal delay={0.14} drift={55}>
             <div className="mt-10 flex flex-wrap gap-3">
               <a
                 href="#projetos"
