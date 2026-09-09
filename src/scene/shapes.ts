@@ -1,33 +1,46 @@
 import * as THREE from 'three'
 
-/* As formas por onde a bola passa, uma por secao, na ordem do scroll.
-   Cada uma vira uma nuvem de N pontos. Como todas tem o mesmo N, o caco
-   numero k sabe onde fica em qualquer forma, e passar de uma para a
-   outra e so interpolar entre duas posicoes.
+/* Os objetos por onde a peca passa, na ordem do scroll.
 
-   Sao objetos montados de primitivas, e nao formas abstratas: a silhueta
-   precisa se ler de primeira, mesmo desenhada por mil cacos soltos.
+   Cada um vem em tres versoes: a malha solida, as arestas dela (e o que
+   deixa a peca desenhada em vez de borrada) e uma nuvem de N pontos com
+   a normal de cada ponto. A malha e o que aparece parado numa secao; a
+   nuvem so entra durante a virada, quando a peca se despedaca no ar e se
+   remonta na forma seguinte. Como todas as nuvens tem o mesmo N, o caco
+   numero k sabe onde fica em qualquer objeto.
 
    O amostrador e escrito aqui na mao de proposito: o MeshSurfaceSampler
    mora em three/examples/jsm, e importar de la traz uma segunda copia do
    three para o bundle, o que quebra o reconhecimento de objetos do R3F. */
 
-/** Junta os triangulos de varias geometrias num unico array de vertices. */
-function triangles(geos: THREE.BufferGeometry[]): Float32Array {
-  const parts = geos.map((g) => {
-    const flat = g.index ? g.toNonIndexed() : g
-    const copy = new Float32Array(flat.getAttribute('position').array as Float32Array)
-    if (flat !== g) flat.dispose()
-    g.dispose()
-    return copy
-  })
-  const out = new Float32Array(parts.reduce((n, p) => n + p.length, 0))
+export type Cloud = { pos: Float32Array; nor: Float32Array }
+export type Shape = { geo: THREE.BufferGeometry; edges: THREE.BufferGeometry; cloud: Cloud }
+
+/** Qual objeto aparece em cada secao. O robo abre, reaparece no sobre e
+    fecha no contato. */
+export const ORDER = [0, 0, 1, 2, 3, 4, 5, 0]
+
+/** Junta as primitivas numa malha so, mantendo posicao e normal. */
+function merge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  const flats = parts.map((p) => (p.index ? p.toNonIndexed() : p))
+  let total = 0
+  for (const f of flats) total += f.getAttribute('position').count
+  const pos = new Float32Array(total * 3)
+  const nor = new Float32Array(total * 3)
   let at = 0
-  for (const p of parts) {
-    out.set(p, at)
-    at += p.length
+  for (const f of flats) {
+    pos.set(f.getAttribute('position').array as Float32Array, at)
+    nor.set(f.getAttribute('normal').array as Float32Array, at)
+    at += f.getAttribute('position').count * 3
   }
-  return out
+  flats.forEach((f, i) => {
+    if (f !== parts[i]) f.dispose()
+    parts[i].dispose()
+  })
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3))
+  return geo
 }
 
 /** Areas acumuladas, para sortear triangulo grande com mais frequencia
@@ -60,13 +73,10 @@ function pickTriangle(acc: Float32Array): number {
   return lo
 }
 
-export type Cloud = { pos: Float32Array; nor: Float32Array }
-
-/** n pontos espalhados pela superficie do conjunto, cada um com a normal
-    do triangulo de onde saiu: e ela que deita o caco sobre a casca do
-    objeto, em vez de deixar cada um apontando para um lado. */
-function surface(geos: THREE.BufferGeometry[], n: number): Cloud {
-  const tris = triangles(geos)
+/** n pontos pela superficie da malha, cada um com a normal do triangulo
+    de onde saiu: e ela que deita o caco sobre a casca. */
+function sample(geo: THREE.BufferGeometry, n: number): Cloud {
+  const tris = geo.getAttribute('position').array as Float32Array
   const acc = cumulativeAreas(tris)
   const pos = new Float32Array(n * 3)
   const nor = new Float32Array(n * 3)
@@ -97,51 +107,59 @@ function surface(geos: THREE.BufferGeometry[], n: number): Cloud {
 const box = (w: number, h: number, d: number, x = 0, y = 0, z = 0) =>
   new THREE.BoxGeometry(w, h, d).translate(x, y, z)
 
-/** Robozinho: antena, cabeca com visor, tronco, bracos, pernas e pes. */
+/** Robozinho: antena, cabeca com visor e orelhas, tronco com painel,
+    bracos, maos, pernas e pes. */
 function robot(): THREE.BufferGeometry[] {
   return [
-    new THREE.CylinderGeometry(0.025, 0.025, 0.2, 8).translate(0, 1.06, 0),
-    new THREE.IcosahedronGeometry(0.08, 1).translate(0, 1.2, 0),
-    box(0.66, 0.52, 0.5, 0, 0.78, 0),
-    box(0.46, 0.18, 0.04, 0, 0.8, 0.26),
-    new THREE.CylinderGeometry(0.11, 0.11, 0.12, 10).translate(0, 0.46, 0),
-    box(0.78, 0.72, 0.48, 0, 0.04, 0),
-    box(0.16, 0.58, 0.16, 0.52, 0.06, 0),
-    box(0.16, 0.58, 0.16, -0.52, 0.06, 0),
-    box(0.21, 0.17, 0.21, 0.52, -0.31, 0),
-    box(0.21, 0.17, 0.21, -0.52, -0.31, 0),
-    box(0.22, 0.5, 0.22, 0.22, -0.62, 0),
-    box(0.22, 0.5, 0.22, -0.22, -0.62, 0),
-    box(0.3, 0.14, 0.4, 0.22, -0.93, 0.06),
-    box(0.3, 0.14, 0.4, -0.22, -0.93, 0.06),
+    new THREE.CylinderGeometry(0.03, 0.03, 0.22, 10).translate(0, 1.08, 0),
+    new THREE.IcosahedronGeometry(0.09, 1).translate(0, 1.24, 0),
+    box(0.72, 0.56, 0.54, 0, 0.8, 0),
+    box(0.5, 0.2, 0.06, 0, 0.82, 0.28),
+    new THREE.CylinderGeometry(0.09, 0.09, 0.12, 12).rotateZ(Math.PI / 2).translate(0.4, 0.8, 0),
+    new THREE.CylinderGeometry(0.09, 0.09, 0.12, 12).rotateZ(Math.PI / 2).translate(-0.4, 0.8, 0),
+    new THREE.CylinderGeometry(0.13, 0.13, 0.14, 12).translate(0, 0.46, 0),
+    box(0.84, 0.76, 0.5, 0, 0.02, 0),
+    box(0.34, 0.24, 0.04, 0, 0.06, 0.27),
+    box(0.18, 0.6, 0.18, 0.56, 0.04, 0),
+    box(0.18, 0.6, 0.18, -0.56, 0.04, 0),
+    box(0.23, 0.19, 0.23, 0.56, -0.34, 0),
+    box(0.23, 0.19, 0.23, -0.56, -0.34, 0),
+    box(0.24, 0.5, 0.24, 0.23, -0.64, 0),
+    box(0.24, 0.5, 0.24, -0.23, -0.64, 0),
+    box(0.32, 0.15, 0.42, 0.23, -0.96, 0.07),
+    box(0.32, 0.15, 0.42, -0.23, -0.96, 0.07),
   ]
 }
 
 /** Tres unidades empilhadas: um sistema por placa. */
 function stack(): THREE.BufferGeometry[] {
-  return [0.62, 0, -0.62].map((y, i) => box(1.8 - i * 0.14, 0.24, 1.2 - i * 0.1, 0, y, 0))
+  const parts: THREE.BufferGeometry[] = []
+  ;[0.62, 0, -0.62].forEach((y, i) => {
+    const w = 1.7 - i * 0.12
+    parts.push(box(w, 0.3, 1.15 - i * 0.08, 0, y, 0))
+    // um friso na frente de cada unidade, para nao virar tres caixas lisas
+    parts.push(box(w * 0.55, 0.06, 0.04, -w * 0.16, y + 0.07, (1.15 - i * 0.08) / 2))
+  })
+  return parts
 }
 
-/** Chip: corpo quadrado, marca no topo e as pernas dos dois lados. */
+/** Chip: corpo quadrado, marca no topo e as pernas dos quatro lados. */
 function chip(): THREE.BufferGeometry[] {
-  const parts = [box(1.0, 0.2, 1.0), box(0.34, 0.04, 0.34, 0, 0.12, 0)]
+  const parts = [box(1.02, 0.22, 1.02), box(0.36, 0.05, 0.36, 0, 0.135, 0)]
   for (let i = 0; i < 7; i++) {
     const z = -0.42 + (i / 6) * 0.84
-    parts.push(box(0.28, 0.06, 0.08, 0.62, 0, z), box(0.28, 0.06, 0.08, -0.62, 0, z))
-    parts.push(box(0.08, 0.06, 0.28, z, 0, 0.62), box(0.08, 0.06, 0.28, z, 0, -0.62))
+    parts.push(box(0.3, 0.07, 0.09, 0.63, 0, z), box(0.3, 0.07, 0.09, -0.63, 0, z))
+    parts.push(box(0.09, 0.07, 0.3, z, 0, 0.63), box(0.09, 0.07, 0.3, z, 0, -0.63))
   }
   return parts
 }
 
-/** Engrenagem: aro, oito dentes, quatro raios e o cubo central. O aro e
-    o cubo sao cilindros abertos de proposito. Disco cheio espalha caco
-    pela face inteira e a peca vira confete: o que faz ler engrenagem e
-    o contorno. */
+/** Engrenagem: aro, oito dentes, quatro raios e o cubo central. */
 function gear(): THREE.BufferGeometry[] {
   const parts: THREE.BufferGeometry[] = [
-    new THREE.CylinderGeometry(0.8, 0.8, 0.3, 48, 1, true).rotateX(Math.PI / 2),
-    new THREE.CylinderGeometry(0.62, 0.62, 0.3, 40, 1, true).rotateX(Math.PI / 2),
-    new THREE.CylinderGeometry(0.26, 0.26, 0.3, 24, 1, true).rotateX(Math.PI / 2),
+    new THREE.CylinderGeometry(0.8, 0.8, 0.3, 40, 1, true).rotateX(Math.PI / 2),
+    new THREE.CylinderGeometry(0.62, 0.62, 0.3, 36, 1, true).rotateX(Math.PI / 2),
+    new THREE.CylinderGeometry(0.26, 0.26, 0.3, 20, 1, true).rotateX(Math.PI / 2),
   ]
   for (let i = 0; i < 8; i++) {
     const ang = (i / 8) * Math.PI * 2
@@ -154,7 +172,7 @@ function gear(): THREE.BufferGeometry[] {
   for (let i = 0; i < 4; i++) {
     const ang = (i / 4) * Math.PI * 2 + Math.PI / 8
     parts.push(
-      new THREE.BoxGeometry(0.4, 0.13, 0.3)
+      new THREE.BoxGeometry(0.42, 0.14, 0.3)
         .rotateZ(ang)
         .translate(Math.cos(ang) * 0.44, Math.sin(ang) * 0.44, 0),
     )
@@ -162,41 +180,55 @@ function gear(): THREE.BufferGeometry[] {
   return parts
 }
 
-/** Foguete: bico, corpo, tres aletas e o bocal. */
+/** Foguete: bico, corpo com faixa, tres aletas e o bocal. */
 function rocket(): THREE.BufferGeometry[] {
   const parts: THREE.BufferGeometry[] = [
-    new THREE.ConeGeometry(0.3, 0.6, 20).translate(0, 0.96, 0),
-    new THREE.CylinderGeometry(0.3, 0.34, 1.25, 20).translate(0, 0.03, 0),
-    new THREE.CylinderGeometry(0.22, 0.33, 0.24, 20).translate(0, -0.72, 0),
+    new THREE.ConeGeometry(0.32, 0.62, 24).translate(0, 0.98, 0),
+    new THREE.CylinderGeometry(0.32, 0.36, 1.26, 24).translate(0, 0.04, 0),
+    new THREE.CylinderGeometry(0.345, 0.345, 0.1, 24).translate(0, 0.44, 0),
+    new THREE.CylinderGeometry(0.23, 0.35, 0.26, 24).translate(0, -0.72, 0),
   ]
   for (let i = 0; i < 3; i++) {
     const ang = (i / 3) * Math.PI * 2
     parts.push(
-      new THREE.BoxGeometry(0.06, 0.44, 0.36)
+      new THREE.BoxGeometry(0.07, 0.46, 0.38)
         .rotateY(ang)
-        .translate(Math.cos(ang) * 0.34, -0.44, Math.sin(ang) * 0.34),
+        .translate(Math.cos(ang) * 0.36, -0.44, Math.sin(ang) * 0.36),
     )
   }
   return parts
 }
 
-export function buildShapes(count: number): Cloud[] {
-  const bot = () => surface(robot(), count)
+/** Cristal: dois octaedros, um dentro do outro. */
+function crystal(): THREE.BufferGeometry[] {
   return [
-    // hero e sobre: o robozinho, parado do mesmo jeito nas duas
-    bot(),
-    bot(),
-    // projetos: tres unidades empilhadas
-    surface(stack(), count),
-    // ia aplicada: um chip
-    surface(chip(), count),
-    // ferramentas: a engrenagem
-    surface(gear(), count),
-    // trajetoria: o foguete, que sobe
-    surface(rocket(), count),
-    // certificacoes: um cristal
-    surface([new THREE.OctahedronGeometry(1.15, 0)], count),
-    // contato: o robozinho de novo, fecha onde comecou
-    bot(),
+    new THREE.OctahedronGeometry(1.15, 0),
+    new THREE.OctahedronGeometry(0.6, 0).rotateY(Math.PI / 4),
   ]
+}
+
+/* Peca chata vista de perfil vira uma barra: as inclinacoes abaixo sao
+   o angulo em que cada objeto se le melhor de frente para a camera. */
+const PIECES: { parts: () => THREE.BufferGeometry[]; tiltX?: number; tiltY?: number }[] = [
+  { parts: robot },
+  { parts: stack, tiltY: 0.5 },
+  { parts: chip, tiltX: -0.5, tiltY: 0.4 },
+  { parts: gear },
+  { parts: rocket },
+  { parts: crystal, tiltY: 0.3 },
+]
+
+export function buildShapes(count: number): Shape[] {
+  return PIECES.map(({ parts, tiltX, tiltY }) => {
+    const geo = merge(parts())
+    if (tiltX) geo.rotateX(tiltX)
+    if (tiltY) geo.rotateY(tiltY)
+    return {
+      geo,
+      // 22 graus: guarda a silhueta e as quinas, sem desenhar cada
+      // triangulo da malha
+      edges: new THREE.EdgesGeometry(geo, 22),
+      cloud: sample(geo, count),
+    }
+  })
 }

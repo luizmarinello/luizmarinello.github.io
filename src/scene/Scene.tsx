@@ -2,15 +2,15 @@ import { useMemo, useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { scrollState } from './scrollState'
-import { buildShapes } from './shapes'
+import { ORDER, buildShapes } from './shapes'
 
-/* A bola nao muda de forma por deformacao: ela e feita de cacos, e cada
-   caco viaja da posicao que ocupava numa forma para a que ocupa na
-   seguinte. No meio do caminho todos sao empurrados para fora, entao a
-   peca se desmonta no ar antes de se montar de novo na forma da proxima
-   secao. A travessia acompanha o scroll 1 para 1; cor, escala e posicao
-   sao amortecidas a partir do valor que esta na tela, e por isso subir
-   o scroll no meio da montagem inverte sem emenda. */
+/* Parado numa secao, o que aparece e a malha solida do objeto com as
+   arestas desenhadas por cima. Na virada entre duas secoes a malha some,
+   a nuvem de cacos cresce no lugar dela, cada caco viaja da casca de um
+   objeto para a casca do proximo, e depois encolhe de volta ate a malha
+   seguinte aparecer inteira. A travessia acompanha o scroll 1 para 1;
+   cor, escala e posicao sao amortecidas a partir do valor que esta na
+   tela, e por isso subir o scroll no meio da virada inverte sem emenda. */
 
 type Stage = {
   scale: number
@@ -24,51 +24,65 @@ type Stage = {
 
 const STAGES: Stage[] = [
   // hero: o robo, a direita
-  { scale: 1.18, glow: 0.22, color: '#8a8a99', camZ: 4.6, spinZ: 0, x: 2.0, y: 0.0 },
+  { scale: 0.95, glow: 0.25, color: '#6e6e7c', camZ: 4.6, spinZ: 0, x: 2.0, y: 0.1 },
   // sobre: o mesmo robo, atravessa para a esquerda
-  { scale: 1.08, glow: 0.28, color: '#9a8f8a', camZ: 4.4, spinZ: 0, x: -2.1, y: 0.15 },
+  { scale: 0.88, glow: 0.3, color: '#7b7168', camZ: 4.4, spinZ: 0, x: -2.1, y: 0.2 },
   // projetos: tres unidades empilhadas, volta para a direita
-  { scale: 0.98, glow: 0.4, color: '#c9793f', camZ: 4.2, spinZ: 0, x: 2.3, y: -0.1 },
+  { scale: 0.9, glow: 0.4, color: '#9a5c30', camZ: 4.2, spinZ: 0, x: 2.3, y: -0.05 },
   // ia aplicada: o chip em brasa, atras do painel a esquerda
-  { scale: 1.0, glow: 0.95, color: '#e8622f', camZ: 4.0, spinZ: 0, x: -2.3, y: 0.1 },
-  // ferramentas: a engrenagem, e a unica que gira de verdade
-  { scale: 1.0, glow: 0.45, color: '#b98a5e', camZ: 4.2, spinZ: 0.5, x: 2.2, y: -0.1 },
+  { scale: 0.95, glow: 0.9, color: '#c9552a', camZ: 4.0, spinZ: 0, x: -2.3, y: 0.1 },
+  // ferramentas: a engrenagem, a unica peca que gira de verdade
+  { scale: 0.88, glow: 0.42, color: '#96714c', camZ: 4.2, spinZ: 0.42, x: 2.2, y: -0.05 },
   // trajetoria: o foguete, a esquerda
-  { scale: 0.95, glow: 0.4, color: '#9a8f8a', camZ: 4.4, spinZ: 0, x: -2.2, y: 0.05 },
+  { scale: 0.85, glow: 0.4, color: '#7b7168', camZ: 4.4, spinZ: 0, x: -2.2, y: 0.1 },
   // certificacoes: o cristal, a direita
-  { scale: 0.9, glow: 0.55, color: '#d8a05a', camZ: 4.4, spinZ: 0.12, x: 2.2, y: 0.1 },
+  { scale: 0.8, glow: 0.5, color: '#a07846', camZ: 4.4, spinZ: 0.1, x: 2.2, y: 0.15 },
   // contato: o robo de novo, centralizado e recuado
-  { scale: 1.2, glow: 0.6, color: '#e8622f', camZ: 5.6, spinZ: 0, x: 0.0, y: 0.0 },
+  { scale: 1.0, glow: 0.55, color: '#c9552a', camZ: 5.6, spinZ: 0, x: 0.0, y: 0.1 },
 ]
 
 const lerp = (a: number, b: number, f: number) => a + (b - a) * f
 const ease = (f: number) => f * f * (3 - 2 * f)
 const UP = new THREE.Vector3(0, 1, 0)
 
-function Shards({ count, still, narrow }: { count: number; still: boolean; narrow: boolean }) {
-  const mesh = useRef<THREE.InstancedMesh>(null)
+/** 0 antes de a, 1 depois de b, suave no meio. */
+function ramp(v: number, a: number, b: number) {
+  return ease(THREE.MathUtils.clamp((v - a) / (b - a), 0, 1))
+}
+
+function Piece({
+  count,
+  still,
+  narrow,
+}: {
+  count: number
+  still: boolean
+  narrow: boolean
+}) {
+  const shapes = useMemo(() => buildShapes(count), [count])
   const group = useRef<THREE.Group>(null)
   const spinner = useRef<THREE.Group>(null)
+  const shards = useRef<THREE.InstancedMesh>(null)
   const key = useRef<THREE.PointLight>(null)
+  const solids = useRef<(THREE.Group | null)[]>([])
 
-  const shapes = useMemo(() => buildShapes(count), [count])
-  // um jeito e uma fase por caco, para nenhum girar igual ao vizinho
+  // meia largura de cada objeto, para nenhum encostar na borda da tela
+  const halfWidths = useMemo(
+    () =>
+      shapes.map((s) => {
+        const p = s.cloud.pos
+        let w = 0
+        for (let i = 0; i < p.length; i += 3) w = Math.max(w, Math.abs(p[i]))
+        return w
+      }),
+    [shapes],
+  )
+
   const seed = useMemo(() => {
     const a = new Float32Array(count * 3)
     for (let i = 0; i < count * 3; i++) a[i] = Math.random()
     return a
   }, [count])
-
-  // meia largura de cada forma, para nenhuma encostar na borda da tela
-  const halfWidths = useMemo(
-    () =>
-      shapes.map((c) => {
-        let w = 0
-        for (let i = 0; i < c.pos.length; i += 3) w = Math.max(w, Math.abs(c.pos[i]))
-        return w
-      }),
-    [shapes],
-  )
 
   const dummy = useMemo(() => new THREE.Object3D(), [])
   const normal = useMemo(() => new THREE.Vector3(), [])
@@ -80,11 +94,11 @@ function Shards({ count, still, narrow }: { count: number; still: boolean; narro
   const spinAngle = useRef(0)
 
   useFrame((state, dt) => {
-    const m = mesh.current
     const g = group.current
     const sp = spinner.current
+    const sh = shards.current
     const k = key.current
-    if (!m || !g || !sp || !k) return
+    if (!g || !sp || !sh || !k) return
 
     const last = STAGES.length - 1
     const p = THREE.MathUtils.clamp(scrollState.p, 0, 1) * last
@@ -92,80 +106,120 @@ function Shards({ count, still, narrow }: { count: number; still: boolean; narro
     const f = p - i
     const a = STAGES[i]
     const b = STAGES[i + 1]
+    const from = ORDER[i]
+    const to = ORDER[i + 1]
 
     const cur = live.current
     const l = 3.2
-    const damp = (from: number, to: number) => THREE.MathUtils.damp(from, to, l, dt)
+    const damp = (v: number, target: number) => THREE.MathUtils.damp(v, target, l, dt)
     cur.scale = damp(cur.scale, lerp(a.scale, b.scale, f))
     cur.glow = damp(cur.glow, lerp(a.glow, b.glow, f))
     cur.camZ = damp(cur.camZ, lerp(a.camZ, b.camZ, f))
     cur.spinZ = damp(cur.spinZ, lerp(a.spinZ, b.spinZ, f))
+    cur.y = damp(cur.y, lerp(a.y, b.y, f))
+
     // o quanto o objeto pode andar para o lado depende da largura dele e
     // da largura da tela: numa janela estreita ele para mais para dentro,
     // e no celular acaba ficando no centro
     const cam = state.camera as THREE.PerspectiveCamera
     const halfScreen =
       Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * lerp(a.camZ, b.camZ, f) * cam.aspect
-    const halfShape = lerp(halfWidths[i], halfWidths[i + 1], f) * cur.scale
+    const halfShape = lerp(halfWidths[from], halfWidths[to], f) * cur.scale
     const limit = Math.max(0, halfScreen - halfShape - 0.5)
     const wantX = lerp(a.x, b.x, f)
     cur.x = damp(cur.x, Math.sign(wantX) * Math.min(Math.abs(wantX), limit))
-    cur.y = damp(cur.y, lerp(a.y, b.y, f))
 
     colorA.set(a.color)
     colorB.set(b.color)
     colorA.lerp(colorB, f)
-    const mat = m.material as THREE.MeshStandardMaterial
-    mat.color.lerp(colorA, 1 - Math.exp(-l * dt))
-    mat.emissive.lerp(colorA, 1 - Math.exp(-l * dt))
-    mat.emissiveIntensity = 0.12 + cur.glow * 0.85
-    k.intensity = 80 + cur.glow * 140
+    k.intensity = 55 + cur.glow * 110
     k.color.copy(colorA)
 
-    const t = state.clock.elapsedTime
-    const A = shapes[i].pos
-    const B = shapes[i + 1].pos
-    const NA = shapes[i].nor
-    const NB = shapes[i + 1].nor
-    const e = ease(f)
-    // no meio da travessia os cacos abrem para fora: e a peca se desmontando
-    const burst = Math.sin(Math.PI * f) * 0.42
-    const shard = 0.055 * cur.scale
+    // quem esta em cena: a malha inteira nas pontas, os cacos no meio
+    const broken = from === to ? 0 : Math.sin(Math.PI * f)
+    const shown = Math.sqrt(broken)
+    const fadeOut = 1 - ramp(f, 0.06, 0.34)
+    const fadeIn = ramp(f, 0.66, 0.94)
 
-    for (let n = 0; n < count; n++) {
-      const j = n * 3
-      let x = lerp(A[j], B[j], e) * cur.scale
-      let y = lerp(A[j + 1], B[j + 1], e) * cur.scale
-      let z = lerp(A[j + 2], B[j + 2], e) * cur.scale
+    solids.current.forEach((solid, s) => {
+      if (!solid) return
+      let o = 0
+      if (from === to) o = s === from ? 1 : 0
+      else if (s === from) o = fadeOut
+      else if (s === to) o = fadeIn
+      solid.visible = o > 0.01
+      if (!solid.visible) return
+      solid.scale.setScalar(cur.scale)
+      for (const child of solid.children) {
+        const mat = (child as THREE.Mesh).material as THREE.Material & {
+          opacity: number
+          color: THREE.Color
+          emissive?: THREE.Color
+          emissiveIntensity?: number
+        }
+        // as arestas ficam claras de proposito: sao elas que desenham a
+        // peca. So a malha acompanha a cor da secao.
+        if (mat.emissive) {
+          mat.opacity = o
+          mat.color.lerp(colorA, 1 - Math.exp(-l * dt))
+          mat.emissive.lerp(colorA, 1 - Math.exp(-l * dt))
+          mat.emissiveIntensity = 0.05 + cur.glow * 0.28
+        } else {
+          mat.opacity = o * 0.45
+        }
+      }
+    })
 
-      if (burst > 0.001) {
+    sh.visible = shown > 0.01
+    if (sh.visible) {
+      const A = shapes[from].cloud
+      const B = shapes[to].cloud
+      const e = ease(f)
+      const burst = broken * 0.5
+      const size = 0.05 * cur.scale * shown
+      const t = state.clock.elapsedTime
+
+      for (let n = 0; n < count; n++) {
+        const j = n * 3
+        let x = lerp(A.pos[j], B.pos[j], e) * cur.scale
+        let y = lerp(A.pos[j + 1], B.pos[j + 1], e) * cur.scale
+        let z = lerp(A.pos[j + 2], B.pos[j + 2], e) * cur.scale
+
         const d = Math.hypot(x, y, z) || 1
-        const push = burst * (0.35 + seed[j] * 1.15)
+        const push = burst * (0.35 + seed[j] * 1.2)
         x += (x / d) * push
         y += (y / d) * push
         z += (z / d) * push
-      }
 
-      dummy.position.set(x, y, z)
-      // o caco deita sobre a casca do objeto, seguindo a normal da
-      // superficie: e isso que faz a silhueta se ler em vez de virar
-      // poeira. So na virada ele tomba, e so enquanto ela dura.
-      normal
-        .set(lerp(NA[j], NB[j], e), lerp(NA[j + 1], NB[j + 1], e), lerp(NA[j + 2], NB[j + 2], e))
-        .normalize()
-      dummy.quaternion.setFromUnitVectors(UP, normal)
-      if (!still && burst > 0.001) {
-        tilt.set(seed[j] - 0.5, seed[j + 1] - 0.5, seed[j + 2] - 0.5).normalize()
-        spinQ.setFromAxisAngle(tilt, burst * 4)
-        dummy.quaternion.multiply(spinQ)
+        dummy.position.set(x, y, z)
+        // o caco deita sobre a casca do objeto, seguindo a normal da
+        // superficie: e assim que ele se encaixa de volta na malha
+        normal
+          .set(
+            lerp(A.nor[j], B.nor[j], e),
+            lerp(A.nor[j + 1], B.nor[j + 1], e),
+            lerp(A.nor[j + 2], B.nor[j + 2], e),
+          )
+          .normalize()
+        dummy.quaternion.setFromUnitVectors(UP, normal)
+        if (!still) {
+          tilt.set(seed[j] - 0.5, seed[j + 1] - 0.5, seed[j + 2] - 0.5).normalize()
+          spinQ.setFromAxisAngle(tilt, burst * 5 + Math.sin(t + seed[j] * 6.3) * burst)
+          dummy.quaternion.multiply(spinQ)
+        }
+        dummy.rotateY(seed[j + 2] * 6.283)
+        dummy.scale.set(size, size * 0.35, size)
+        dummy.updateMatrix()
+        sh.setMatrixAt(n, dummy.matrix)
       }
-      dummy.rotateY(seed[j + 2] * 6.283)
-      dummy.scale.set(shard, shard, shard)
-      dummy.updateMatrix()
-      m.setMatrixAt(n, dummy.matrix)
+      sh.instanceMatrix.needsUpdate = true
+      const smat = sh.material as THREE.MeshStandardMaterial
+      smat.color.lerp(colorA, 1 - Math.exp(-l * dt))
+      smat.emissive.lerp(colorA, 1 - Math.exp(-l * dt))
+      smat.emissiveIntensity = 0.05 + cur.glow * 0.35
     }
-    m.instanceMatrix.needsUpdate = true
 
+    const t = state.clock.elapsedTime
     g.position.x = cur.x + (still ? 0 : Math.sin(t * 0.21) * 0.07)
     // no celular o objeto nao tem para onde correr na horizontal, entao
     // ele desce um pouco e sai de tras do texto
@@ -173,8 +227,8 @@ function Shards({ count, still, narrow }: { count: number; still: boolean; narro
     if (!still) {
       // o objeto olha de um lado para o outro em vez de rodopiar, senao
       // o robo passa metade do tempo de costas
-      g.rotation.y = Math.sin(t * 0.2) * 0.36
-      // so a engrenagem gira. Quando ela sai de cena o angulo volta ao
+      g.rotation.y = Math.sin(t * 0.2) * 0.34
+      // so a engrenagem gira. Quando ela sai de cena o angulo volta a
       // zero pelo caminho mais curto, senao a forma seguinte herda a
       // sobra de rotacao e aparece deitada
       spinAngle.current += cur.spinZ * dt
@@ -185,27 +239,56 @@ function Shards({ count, still, narrow }: { count: number; still: boolean; narro
       sp.rotation.z = spinAngle.current
     }
 
-    state.camera.position.z = cur.camZ
-    state.camera.position.x = -cur.x * 0.1
-    state.camera.lookAt(0, 0, 0)
+    cam.position.z = cur.camZ
+    cam.position.x = -cur.x * 0.1
+    cam.lookAt(0, 0, 0)
   })
 
   return (
     <group ref={group}>
       {/* a luz fica fora do grupo que gira, senao o brilho viaja junto */}
-      <pointLight ref={key} position={[1.5, 1.2, 2.1]} distance={13} color="#ff7a3d" />
+      <pointLight ref={key} position={[1.6, 1.4, 2.2]} distance={14} color="#ff7a3d" />
       <group ref={spinner}>
-      <instancedMesh ref={mesh} args={[undefined, undefined, count]} frustumCulled={false}>
-        <boxGeometry args={[1, 0.16, 1]} />
-        <meshStandardMaterial
-          color="#8a8a99"
-          emissive="#8a8a99"
-          emissiveIntensity={0.12}
-          roughness={0.35}
-          metalness={0.6}
-          flatShading
-        />
-      </instancedMesh>
+        {shapes.map((s, n) => (
+          <group
+            key={n}
+            ref={(el) => {
+              solids.current[n] = el
+            }}
+            visible={false}
+          >
+            <mesh geometry={s.geo}>
+              <meshStandardMaterial
+                color="#9a9aa8"
+                emissive="#9a9aa8"
+                emissiveIntensity={0.1}
+                roughness={0.42}
+                metalness={0.6}
+                transparent
+                flatShading
+              />
+            </mesh>
+            <lineSegments geometry={s.edges}>
+              <lineBasicMaterial color="#d6d6de" transparent opacity={0} />
+            </lineSegments>
+          </group>
+        ))}
+        <instancedMesh
+          ref={shards}
+          args={[undefined, undefined, count]}
+          frustumCulled={false}
+          visible={false}
+        >
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial
+            color="#9a9aa8"
+            emissive="#9a9aa8"
+            emissiveIntensity={0.1}
+            roughness={0.32}
+            metalness={0.72}
+            flatShading
+          />
+        </instancedMesh>
       </group>
     </group>
   )
@@ -236,7 +319,7 @@ function Dust({ count, still }: { count: number; still: boolean }) {
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={0.013} color="#8d8d98" transparent opacity={0.28} sizeAttenuation />
+      <pointsMaterial size={0.013} color="#8d8d98" transparent opacity={0.25} sizeAttenuation />
     </points>
   )
 }
@@ -254,12 +337,12 @@ export default function Scene() {
     >
       <Canvas
         dpr={[1, small ? 1.4 : 1.8]}
-        camera={{ position: [0, 0, 4.8], fov: 42 }}
-        gl={{ antialias: !small, powerPreference: 'high-performance' }}
+        camera={{ position: [0, 0, 4.6], fov: 42 }}
+        gl={{ antialias: true, powerPreference: 'high-performance' }}
       >
-        <ambientLight intensity={0.34} />
-        <pointLight position={[-5, -2, -4]} intensity={26} color="#5f7fbf" distance={24} />
-        <Shards count={small ? 620 : 2600} still={still} narrow={small} />
+        <ambientLight intensity={0.3} />
+        <pointLight position={[-5, -2, -4]} intensity={30} color="#5f7fbf" distance={24} />
+        <Piece count={small ? 700 : 2200} still={still} narrow={small} />
         <Dust count={small ? 180 : 420} still={still} />
       </Canvas>
     </div>
