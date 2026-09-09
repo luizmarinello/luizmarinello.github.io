@@ -3,8 +3,8 @@ type L<T> = { pt: T; en: T }
 
 /* PREENCHER: enquanto estiver null, o item nao aparece no site. */
 export const contact = {
-  email: null as string | null,
-  github: null as string | null,
+  email: 'luizhrosa2007@gmail.com' as string | null,
+  github: 'https://github.com/luizmarinello' as string | null,
   linkedin: null as string | null,
   cv: 'CV-Luiz-Henrique.pdf',
   photo: null as string | null, // ex.: 'luiz.jpg', arquivo dentro de public/
