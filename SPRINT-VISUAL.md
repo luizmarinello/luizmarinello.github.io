@@ -62,7 +62,7 @@ promessa de clique.
 
 ---
 
-## Bloco 2 — luz e material da peça
+## Bloco 2 — luz e material da peça  ✅ feito em 10/09/2026
 
 É aqui que 3D passa de "tem um objeto girando" para "isso parece caro". A
 cena hoje tem uma luz ambiente e duas pontuais, e o metal está chapado
@@ -79,9 +79,11 @@ Trocar as duas pontuais por key, fill e rim. O rim é o que separa a silhueta
 do fundo preto, e é justamente a borda que faz a peça se ler.
 
 ### 2.3 Sombra de contato (2h)
-A peça hoje flutua no vazio. Uma sombra suave embaixo dela assenta o objeto
-no espaço. Feita com um plano e uma textura radial, não com sombra real, que
-custaria caro por frame.
+**Trocado por um halo, e o item original foi descartado.** Sombra de contato
+sobre um fundo `#08080a` não desenha nada: escurecer o que já é quase preto é
+invisível. O que assenta a peça num fundo escuro é luz, não sombra. Entrou um
+borrão radial aditivo atrás dela, desenhado uma vez num canvas, que acompanha
+a cor e a brasa da seção.
 
 ### 2.4 Brilho no núcleo da seção de IA (3h, tem custo)
 A seção de IA é a que mais vende você, e o chip em brasa hoje só tem cor,
@@ -92,10 +94,16 @@ pacote da cena, que já tem 240 KB comprimidos. Antes de entrar, medir. Se
 passar de 300 KB, cai fora e o efeito vira um sprite de halo atrás da peça,
 que é quase de graça.
 
+**Não entrou, e a razão não é o peso: é que o item 5.3 nunca foi feito.** Um
+passe de pós-processamento na tela inteira é o efeito mais caro por frame
+dessa lista toda, e colocar isso sem nenhum número de FPS na mão é apostar na
+máquina do recrutador. Ficou o halo do 2.3, que faz a brasa ler e custa perto
+de zero. O bloom continua disponível assim que houver medição.
+
 ### 2.5 Exposição por seção (1h)
-O tonemapping já vem do padrão do R3F. O que dá para explorar é a exposição:
-subir devagar até a seção de IA e descer depois. Faz a página respirar sem
-mexer em cor nenhuma.
+Feito. `toneMappingExposure` virou um valor por parada, amortecido como todo
+o resto: 1.0 na abertura, sobe até 1.14 na seção de IA e volta. Dá para
+sentir a página respirar sem mexer em cor nenhuma.
 
 ---
 

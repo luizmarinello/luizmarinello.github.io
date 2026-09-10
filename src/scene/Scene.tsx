@@ -1,5 +1,5 @@
-import { useMemo, useRef } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { useEffect, useMemo, useRef } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { scrollState } from './scrollState'
 import { ORDER, buildShapes } from './shapes'
@@ -14,6 +14,7 @@ import { ORDER, buildShapes } from './shapes'
 
 type Stage = {
   scale: number
+  exposure: number
   glow: number
   color: string
   camZ: number
@@ -24,21 +25,22 @@ type Stage = {
 
 const STAGES: Stage[] = [
   // hero: o robo, a direita
-  { scale: 0.95, glow: 0.25, color: '#6e6e7c', camZ: 4.6, spinZ: 0, x: 2.0, y: 0.1 },
+  { scale: 0.95, exposure: 1.0, glow: 0.25, color: '#6e6e7c', camZ: 4.6, spinZ: 0, x: 2.0, y: 0.1 },
   // sobre: o mesmo robo, atravessa para a esquerda
-  { scale: 0.88, glow: 0.3, color: '#7b7168', camZ: 4.4, spinZ: 0, x: -2.1, y: 0.2 },
+  { scale: 0.88, exposure: 1.0, glow: 0.3, color: '#7b7168', camZ: 4.4, spinZ: 0, x: -2.1, y: 0.2 },
   // projetos: tres unidades empilhadas, volta para a direita
-  { scale: 0.9, glow: 0.4, color: '#9a5c30', camZ: 4.2, spinZ: 0, x: 2.3, y: -0.05 },
-  // ia aplicada: o chip em brasa, atras do painel a esquerda
-  { scale: 0.95, glow: 0.9, color: '#c9552a', camZ: 4.0, spinZ: 0, x: -2.3, y: 0.1 },
+  { scale: 0.9, exposure: 1.06, glow: 0.4, color: '#9a5c30', camZ: 4.2, spinZ: 0, x: 2.3, y: -0.05 },
+  // ia aplicada: o chip em brasa. A pagina inteira clareia aqui, que e a
+  // secao que mais vende ele
+  { scale: 0.95, exposure: 1.14, glow: 0.68, color: '#b84d26', camZ: 4.0, spinZ: 0, x: -2.3, y: 0.1 },
   // ferramentas: a engrenagem, a unica peca que gira de verdade
-  { scale: 0.88, glow: 0.42, color: '#96714c', camZ: 4.2, spinZ: 0.42, x: 2.2, y: -0.05 },
+  { scale: 0.88, exposure: 1.06, glow: 0.42, color: '#96714c', camZ: 4.2, spinZ: 0.42, x: 2.2, y: -0.05 },
   // trajetoria: o foguete, a esquerda
-  { scale: 0.85, glow: 0.4, color: '#7b7168', camZ: 4.4, spinZ: 0, x: -2.2, y: 0.1 },
+  { scale: 0.85, exposure: 1.0, glow: 0.4, color: '#7b7168', camZ: 4.4, spinZ: 0, x: -2.2, y: 0.1 },
   // certificacoes: o cristal, a direita
-  { scale: 0.8, glow: 0.5, color: '#a07846', camZ: 4.4, spinZ: 0.1, x: 2.2, y: 0.15 },
+  { scale: 0.8, exposure: 1.1, glow: 0.5, color: '#a07846', camZ: 4.4, spinZ: 0.1, x: 2.2, y: 0.15 },
   // contato: o robo de novo, centralizado e recuado
-  { scale: 1.0, glow: 0.55, color: '#c9552a', camZ: 5.6, spinZ: 0, x: 0.0, y: 0.1 },
+  { scale: 1.0, exposure: 1.14, glow: 0.55, color: '#c9552a', camZ: 5.6, spinZ: 0, x: 0.0, y: 0.1 },
 ]
 
 const lerp = (a: number, b: number, f: number) => a + (b - a) * f
@@ -48,6 +50,82 @@ const UP = new THREE.Vector3(0, 1, 0)
 /** 0 antes de a, 1 depois de b, suave no meio. */
 function ramp(v: number, a: number, b: number) {
   return ease(THREE.MathUtils.clamp((v - a) / (b - a), 0, 1))
+}
+
+
+/* Estudio de luz.
+
+   O metal precisa de alguma coisa para refletir, senao vira plastico. Em
+   vez de baixar um HDR de CDN, que custaria 1 a 2 MB e uma dependencia de
+   rede, monto um estudio minusculo aqui: tres paineis coloridos numa cena
+   auxiliar, passados pelo PMREM uma vez so. O resultado e o reflexo que
+   aparece na casca das pecas. */
+function Studio() {
+  const gl = useThree((s) => s.gl)
+  const scene = useThree((s) => s.scene)
+
+  useEffect(() => {
+    const pmrem = new THREE.PMREMGenerator(gl)
+    const room = new THREE.Scene()
+    room.background = new THREE.Color('#0a0a0e')
+
+    const panel = (
+      color: string,
+      w: number,
+      h: number,
+      pos: [number, number, number],
+      rot: [number, number, number],
+    ) => {
+      const mesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(w, h),
+        new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }),
+      )
+      mesh.position.set(...pos)
+      mesh.rotation.set(...rot)
+      room.add(mesh)
+      return mesh
+    }
+
+    panel('#ff8a4c', 7, 7, [5, 3.5, 4], [0, -Math.PI / 3.4, 0]) // brasa, a chave
+    panel('#3f5f9e', 8, 9, [-6, 0, 2], [0, Math.PI / 3, 0]) // frio, o preenchimento
+    panel('#f2f2f6', 12, 2, [0, 6, -3], [-Math.PI / 2.2, 0, 0]) // faixa clara em cima
+    panel('#101014', 20, 20, [0, -7, 0], [-Math.PI / 2, 0, 0]) // chao escuro
+
+    const target = pmrem.fromScene(room, 0.03)
+    scene.environment = target.texture
+
+    return () => {
+      scene.environment = null
+      target.dispose()
+      pmrem.dispose()
+      room.traverse((o) => {
+        const m = o as THREE.Mesh
+        m.geometry?.dispose()
+        if (m.material) (m.material as THREE.Material).dispose()
+      })
+    }
+  }, [gl, scene])
+
+  return null
+}
+
+/** Textura de halo: um borrao radial desenhado uma vez num canvas. E o
+    brilho da brasa por um centesimo do custo de um passe de bloom. */
+function useHalo() {
+  return useMemo(() => {
+    const size = 128
+    const canvas = document.createElement('canvas')
+    canvas.width = size
+    canvas.height = size
+    const ctx = canvas.getContext('2d')!
+    const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
+    grad.addColorStop(0, 'rgba(255,255,255,0.85)')
+    grad.addColorStop(0.3, 'rgba(255,255,255,0.28)')
+    grad.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, size, size)
+    return new THREE.CanvasTexture(canvas)
+  }, [])
 }
 
 function Piece({
@@ -84,6 +162,9 @@ function Piece({
     return a
   }, [count])
 
+  const halo = useRef<THREE.Mesh>(null)
+  const haloTex = useHalo()
+
   const dummy = useMemo(() => new THREE.Object3D(), [])
   const normal = useMemo(() => new THREE.Vector3(), [])
   const tilt = useMemo(() => new THREE.Vector3(), [])
@@ -98,7 +179,8 @@ function Piece({
     const sp = spinner.current
     const sh = shards.current
     const k = key.current
-    if (!g || !sp || !sh || !k) return
+    const h = halo.current
+    if (!g || !sp || !sh || !k || !h) return
 
     const last = STAGES.length - 1
     const p = THREE.MathUtils.clamp(scrollState.p, 0, 1) * last
@@ -117,6 +199,8 @@ function Piece({
     cur.camZ = damp(cur.camZ, lerp(a.camZ, b.camZ, f))
     cur.spinZ = damp(cur.spinZ, lerp(a.spinZ, b.spinZ, f))
     cur.y = damp(cur.y, lerp(a.y, b.y, f))
+    cur.exposure = damp(cur.exposure, lerp(a.exposure, b.exposure, f))
+    state.gl.toneMappingExposure = cur.exposure
 
     // o quanto o objeto pode andar para o lado depende da largura dele e
     // da largura da tela: numa janela estreita ele para mais para dentro,
@@ -248,6 +332,16 @@ function Piece({
     <group ref={group}>
       {/* a luz fica fora do grupo que gira, senao o brilho viaja junto */}
       <pointLight ref={key} position={[1.6, 1.4, 2.2]} distance={14} color="#ff7a3d" />
+      <mesh ref={halo} position={[0, 0, -0.9]}>
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial
+          map={haloTex}
+          transparent
+          opacity={0.15}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
       <group ref={spinner}>
         {shapes.map((s, n) => (
           <group
@@ -262,8 +356,9 @@ function Piece({
                 color="#9a9aa8"
                 emissive="#9a9aa8"
                 emissiveIntensity={0.1}
-                roughness={0.42}
-                metalness={0.6}
+                roughness={0.34}
+                metalness={0.85}
+                envMapIntensity={0.9}
                 transparent
                 flatShading
               />
@@ -340,8 +435,14 @@ export default function Scene() {
         camera={{ position: [0, 0, 4.6], fov: 42 }}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
       >
-        <ambientLight intensity={0.3} />
-        <pointLight position={[-5, -2, -4]} intensity={30} color="#5f7fbf" distance={24} />
+        <Studio />
+        {/* o ambiente ja faz o papel da luz difusa, entao o ambiente
+            aqui e so um piso para nada ficar preto puro */}
+        <ambientLight intensity={0.12} />
+        <directionalLight position={[4, 5, 6]} intensity={2.2} color="#ffd9c2" />
+        <directionalLight position={[-6, -1, 3]} intensity={0.7} color="#7f9ad6" />
+        {/* contraluz: e ela que separa a silhueta do fundo preto */}
+        <directionalLight position={[-2, 3, -6]} intensity={2.6} color="#ffb489" />
         <Piece count={small ? 700 : 2200} still={still} narrow={small} />
         <Dust count={small ? 180 : 420} still={still} />
       </Canvas>
