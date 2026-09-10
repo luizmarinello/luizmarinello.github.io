@@ -14,11 +14,15 @@ export function Reveal({
   delay = 0,
   className,
   drift = 0,
+  entrance = true,
 }: {
   children: ReactNode
   delay?: number
   className?: string
   drift?: number
+  /** Desligue quando quem entra sao os filhos, um a um, e este aqui e so
+      o trilho da deriva horizontal: senao os dois fades se somam. */
+  entrance?: boolean
 }) {
   const reduce = useReducedMotion()
   const ref = useRef<HTMLDivElement>(null)
@@ -34,8 +38,8 @@ export function Reveal({
       ref={ref}
       className={className}
       style={reduce || !drift ? undefined : { x }}
-      initial={reduce ? { opacity: 0 } : { opacity: 0, y: 22 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={entrance ? (reduce ? { opacity: 0 } : { opacity: 0, y: 22 }) : false}
+      whileInView={entrance ? { opacity: 1, y: 0 } : undefined}
       viewport={{ once: true, amount: 0.25 }}
       transition={
         reduce ? { duration: 0.2 } : { type: 'spring', bounce: 0, duration: 0.55, delay }

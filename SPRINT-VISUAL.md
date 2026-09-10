@@ -139,7 +139,7 @@ está em cacos, que é quando ninguém vê.
 
 ---
 
-## Bloco 4 — página e tipografia
+## Bloco 4 — página e tipografia  ✅ feito em 10/09/2026
 
 ### 4.1 Entrada do hero em cascata (2h)
 O bloco inteiro entra de uma vez. Entrar linha a linha, com uns 60 ms entre
@@ -152,9 +152,20 @@ seção, dentro do mesmo tema escuro, amarra a página inteira ao mesmo sistema.
 parecer vários sites. O limite é uma diferença que só se percebe rolando.
 
 ### 4.3 Indicador de seção (2h)
-Uma marcação fina lateral com a seção atual. Serve de orientação, que é
-função de verdade, e de acabamento. Sem números de seção e sem contador
-falso, que é a versão clichê disso.
+**Entregue sem a marcação lateral.** Uma barra flutuante no lado direito
+colide com o conteúdo em 1280px, que é largura de notebook comum. Em vez de
+acrescentar mobília nova, usei a barra de navegação, que já existe: um fio de
+progresso de 1px no topo dela e o link da seção atual aceso. Mesma função de
+orientação, zero mobília, zero risco de colisão.
+
+**Defeito grave achado aqui, e essa foi a primeira vez que vi a página
+rolada de verdade:** os cacos da virada passavam por cima da coluna de texto
+da seção de IA e o texto ficava ilegível. Três correções: o campo de detritos
+encolheu, a peça recua quando cruza o meio da tela, e a coluna de passos
+ganhou o mesmo vidro do painel ao lado, que agora serve de anteparo. O
+verificador do painel embutido nunca pegaria isso, porque ele congela a
+animação quando está escondido. Passei a conferir por um navegador de
+verdade via Playwright.
 
 ---
 

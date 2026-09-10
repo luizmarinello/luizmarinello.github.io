@@ -186,7 +186,7 @@ export function Ai({ lang }: { lang: Lang }) {
     <section id="ia" className={`${wrap} py-28 md:py-40`}>
       <SectionTitle lead={c.aiLead} drift={22}>{c.aiTitle}</SectionTitle>
       <div className="mt-14 grid gap-12 md:grid-cols-12 md:gap-16">
-        <ol className="order-1 md:order-2 md:col-span-6">
+        <ol className="order-1 rounded-[14px] border border-line bg-surface/55 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl supports-[not(backdrop-filter:blur(0))]:bg-surface md:order-2 md:col-span-6 md:p-8">
           {aiSteps.map((s, i) => (
             <Reveal key={i} delay={i * 0.05}>
               <li className="relative flex gap-5 pb-9 last:pb-0">

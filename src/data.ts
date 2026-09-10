@@ -259,6 +259,7 @@ export const aiDemo = {
 
 export const t: Record<Lang, Record<string, string>> = {
   pt: {
+    navHome: 'Início',
     navProjects: 'Projetos',
     navAi: 'IA aplicada',
     navPath: 'Trajetória',
@@ -290,6 +291,7 @@ export const t: Record<Lang, Record<string, string>> = {
     aboutBody: 'Sou o Luiz, dev full stack em Cascavel, no Paraná. Trabalho no que a empresa usa por dentro: o sistema chato, o que integra com ERP, o que tem papel e permissão. Aprendi Java em legado de órgão público e hoje escrevo o backend que sustenta três plataformas em produção. Quando um modelo de linguagem entra no fluxo, ele entra validado, com fallback e com registro, do mesmo jeito que qualquer outra dependência externa entraria.',
   },
   en: {
+    navHome: 'Start',
     navProjects: 'Work',
     navAi: 'Applied AI',
     navPath: 'Path',

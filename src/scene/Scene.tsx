@@ -135,10 +135,12 @@ function Piece({
   count,
   still,
   narrow,
+  shell,
 }: {
   count: number
   still: boolean
   narrow: boolean
+  shell: React.RefObject<HTMLDivElement | null>
 }) {
   const shapes = useMemo(() => buildShapes(count), [count])
   const group = useRef<THREE.Group>(null)
@@ -285,7 +287,7 @@ function Piece({
     if (sh.visible) {
       const A = shapes[from].cloud
       const B = shapes[to].cloud
-      const base = 0.05 * cur.scale
+      const base = 0.042 * cur.scale
       const low = heights[from]
 
       for (let n = 0; n < count; n++) {
@@ -308,7 +310,7 @@ function Piece({
         // que denuncia movimento feito por interpolacao.
         const d = Math.hypot(x, y, z) || 1
         const flat = Math.hypot(x, z) || 1
-        const swirl = (seed[j + 1] - 0.5) * 1.5 * bk
+        const swirl = (seed[j + 1] - 0.5) * 0.95 * bk
         let vx = x / d + (-z / flat) * swirl
         const vy = y / d
         let vz = z / d + (x / flat) * swirl
@@ -317,7 +319,7 @@ function Piece({
         vz /= vl
         const vyn = vy / vl
 
-        const amp = bk * (0.3 + seed[j] * 1.15)
+        const amp = bk * (0.16 + seed[j] * 0.5)
         dummy.position.set(x + vx * amp, y + vyn * amp, z + vz * amp)
 
         // Parado, o caco deita sobre a casca do objeto pela normal da
@@ -348,7 +350,7 @@ function Piece({
       const smat = sh.material as THREE.MeshStandardMaterial
       smat.color.lerp(colorA, 1 - Math.exp(-l * dt))
       smat.emissive.lerp(colorA, 1 - Math.exp(-l * dt))
-      smat.emissiveIntensity = 0.05 + cur.glow * 0.35
+      smat.emissiveIntensity = 0.04 + cur.glow * 0.2
     }
 
     const t = state.clock.elapsedTime
@@ -373,6 +375,14 @@ function Piece({
         spinAngle.current = THREE.MathUtils.damp(wrapped, 0, 2.2, dt)
       }
       sp.rotation.z = spinAngle.current
+    }
+
+    // Quando a peca cruza o meio da tela ela passa por cima da copia, e
+    // texto sempre ganha de enfeite. Entao ela recua ao chegar no centro
+    // e volta ao cheio quando esta na margem.
+    if (!narrow && shell.current) {
+      const centered = 1 - Math.min(1, Math.abs(cur.x) / 1.5)
+      shell.current.style.opacity = String(1 - 0.55 * centered)
     }
 
     cam.position.z = cur.camZ
@@ -472,6 +482,7 @@ function Dust({ count, still }: { count: number; still: boolean }) {
 }
 
 export default function Scene() {
+  const shell = useRef<HTMLDivElement>(null)
   const still =
     typeof window !== 'undefined' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -479,6 +490,7 @@ export default function Scene() {
 
   return (
     <div
+      ref={shell}
       className="pointer-events-none fixed inset-0 z-0 opacity-45 md:opacity-100"
       aria-hidden="true"
     >
@@ -495,7 +507,7 @@ export default function Scene() {
         <directionalLight position={[-6, -1, 3]} intensity={0.7} color="#7f9ad6" />
         {/* contraluz: e ela que separa a silhueta do fundo preto */}
         <directionalLight position={[-2, 3, -6]} intensity={2.6} color="#ffb489" />
-        <Piece count={small ? 700 : 2200} still={still} narrow={small} />
+        <Piece count={small ? 700 : 2200} still={still} narrow={small} shell={shell} />
         <Dust count={small ? 180 : 420} still={still} />
       </Canvas>
     </div>
