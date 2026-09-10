@@ -81,7 +81,7 @@ export function Panel({
 }) {
   return (
     <div
-      className={`rounded-[14px] border border-line bg-surface/70 backdrop-blur-xl supports-[not(backdrop-filter:blur(0))]:bg-surface ${className}`}
+      className={`rounded-[14px] border border-line bg-surface/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl supports-[not(backdrop-filter:blur(0))]:bg-surface ${className}`}
     >
       {children}
     </div>

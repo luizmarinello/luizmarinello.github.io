@@ -32,7 +32,7 @@ function Nav({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
                 <li key={i.href}>
                   <a
                     href={i.href}
-                    className="rounded-full px-3 py-2 text-sm text-muted transition-colors hover:text-ink"
+                    className="rounded-full px-3 py-2 text-sm text-muted transition duration-150 hover:bg-white/[0.05] hover:text-ink"
                   >
                     {i.label}
                   </a>
@@ -43,7 +43,7 @@ function Nav({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
               type="button"
               onClick={() => setLang(lang === 'pt' ? 'en' : 'pt')}
               aria-label={c.langSwitch}
-              className="rounded-full border border-line px-3 py-1.5 font-mono text-xs text-ink transition-transform duration-100 active:scale-[0.96]"
+              className="rounded-full border border-line px-3 py-1.5 font-mono text-xs text-ink transition duration-150 hover:border-accent/60 hover:text-accent active:scale-[0.96]"
             >
               {c.langLabel}
             </button>
@@ -78,7 +78,7 @@ function Hero({ lang }: { lang: Lang }) {
             <div className="mt-10 flex flex-wrap gap-3">
               <a
                 href="#projetos"
-                className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-medium text-[#0a0a0b] transition-transform duration-100 active:scale-[0.97]"
+                className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-medium text-[#0a0a0b] transition duration-150 hover:brightness-110 active:scale-[0.97]"
               >
                 {c.heroCtaWork}
                 <ArrowDown size={16} weight="bold" />
@@ -86,7 +86,7 @@ function Hero({ lang }: { lang: Lang }) {
               <a
                 href={contact.cv}
                 download
-                className="inline-flex items-center gap-2 rounded-full border border-line bg-white/[0.03] px-6 py-3 text-ink transition-transform duration-100 active:scale-[0.97]"
+                className="inline-flex items-center gap-2 rounded-full border border-line bg-white/[0.03] px-6 py-3 text-ink transition duration-150 hover:border-accent/50 hover:bg-white/[0.07] active:scale-[0.97]"
               >
                 {c.heroCtaCv}
                 <DownloadSimple size={16} />

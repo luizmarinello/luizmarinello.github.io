@@ -1,0 +1,110 @@
+<!doctype html>
+<!--
+  Fonte da imagem de link (og:image). Nao e servida em producao, e so o
+  molde de onde sai public/og.png.
+
+  Para regerar: rodar o dev server, abrir http://localhost:5176/og-image.html
+  e capturar a janela em exatamente 1200x630.
+-->
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>og</title>
+    <script type="module">
+      import '@fontsource-variable/geist'
+      import '@fontsource-variable/geist-mono'
+    </script>
+    <style>
+      * {
+        margin: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+      }
+      body {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 56px;
+        padding: 0 76px;
+        background: #08080a;
+        color: #ededf0;
+        font-family: 'Geist Variable', system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      /* a mesma brasa que a peca 3D joga na cena */
+      body::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(46% 62% at 78% 44%, rgba(232, 98, 47, 0.22), transparent 70%);
+      }
+      .col {
+        position: relative;
+        flex: 1;
+      }
+      .badge {
+        display: block;
+        width: 52px;
+        height: 52px;
+        margin-bottom: 40px;
+      }
+      h1 {
+        font-size: 74px;
+        line-height: 1.04;
+        letter-spacing: -0.035em;
+        font-weight: 500;
+      }
+      h1 span {
+        color: #e8622f;
+      }
+      .rule {
+        width: 64px;
+        height: 2px;
+        margin: 38px 0 22px;
+        background: #e8622f;
+      }
+      p {
+        line-height: 1.7;
+        font-family: 'Geist Mono Variable', ui-monospace, monospace;
+        font-size: 21px;
+        letter-spacing: 0.01em;
+        color: #8d8d98;
+      }
+      .mark {
+        position: relative;
+        width: 330px;
+        height: 330px;
+        flex: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="col">
+      <svg class="badge" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+        <rect width="32" height="32" rx="7" fill="#e8622f" />
+        <path d="M16 5.5v4.5" stroke="#0a0a0b" stroke-width="2.6" stroke-linecap="round" />
+        <circle cx="16" cy="4" r="2.4" fill="#0a0a0b" />
+        <rect x="6" y="9.5" width="20" height="15" rx="3.6" fill="#0a0a0b" />
+        <rect x="9.5" y="14.5" width="13" height="4" rx="2" fill="#e8622f" />
+      </svg>
+      <h1>Backend em Java.<br /><span>IA em produção.</span></h1>
+      <div class="rule"></div>
+      <p>Luiz Henrique Marinello da Rosa<br />luizmarinello.github.io</p>
+    </div>
+
+    <!-- a cabeca do robo em linha, ecoando as arestas da peca 3D -->
+    <svg class="mark" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" fill="none">
+      <circle cx="60" cy="16" r="7" stroke="#e8622f" stroke-width="3" />
+      <path d="M60 23v11" stroke="#e8622f" stroke-width="3" stroke-linecap="round" />
+      <rect x="18" y="34" width="84" height="60" rx="12" stroke="#e8622f" stroke-width="3" />
+      <rect x="33" y="54" width="54" height="16" rx="8" fill="#e8622f" fill-opacity="0.9" />
+      <path d="M18 58H8m104 0h-10" stroke="#e8622f" stroke-width="3" stroke-linecap="round" />
+      <path d="M40 94v14m40-14v14" stroke="#e8622f" stroke-width="3" stroke-linecap="round" />
+    </svg>
+  </body>
+</html>

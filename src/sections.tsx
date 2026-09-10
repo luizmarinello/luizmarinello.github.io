@@ -170,7 +170,7 @@ function Replay({ lang }: { lang: Lang }) {
         <button
           type="button"
           onPointerDown={run}
-          className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-4 py-2 text-sm text-ink transition-transform duration-100 active:scale-[0.97]"
+          className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-4 py-2 text-sm text-ink transition duration-150 hover:bg-white/[0.12] active:scale-[0.97]"
         >
           {done && n > 0 ? <ArrowClockwise size={15} /> : <Play size={15} weight="fill" />}
           {done && n > 0 ? c.aiDemoReplay : c.aiDemoPlay}
@@ -313,7 +313,7 @@ export function Contact({ lang }: { lang: Lang }) {
           {contact.email && (
             <a
               href={`mailto:${contact.email}`}
-              className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-medium text-[#0a0a0b] transition-transform duration-100 active:scale-[0.97]"
+              className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-medium text-[#0a0a0b] transition duration-150 hover:brightness-110 active:scale-[0.97]"
             >
               {c.contactCta}
               <ArrowUpRight size={16} weight="bold" />
@@ -325,7 +325,7 @@ export function Contact({ lang }: { lang: Lang }) {
               href={l.href}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-line bg-white/[0.03] px-6 py-3 text-ink transition-transform duration-100 active:scale-[0.97]"
+              className="inline-flex items-center gap-2 rounded-full border border-line bg-white/[0.03] px-6 py-3 text-ink transition duration-150 hover:border-accent/50 hover:bg-white/[0.07] active:scale-[0.97]"
             >
               {l.label}
               <ArrowUpRight size={16} />
