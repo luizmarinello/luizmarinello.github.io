@@ -47,6 +47,9 @@ const lerp = (a: number, b: number, f: number) => a + (b - a) * f
 const ease = (f: number) => f * f * (3 - 2 * f)
 const UP = new THREE.Vector3(0, 1, 0)
 
+/** Quanto da travessia e gasto escalonando a saida por altura. */
+const SPREAD = 0.34
+
 /** 0 antes de a, 1 depois de b, suave no meio. */
 function ramp(v: number, a: number, b: number) {
   return ease(THREE.MathUtils.clamp((v - a) / (b - a), 0, 1))
@@ -156,6 +159,21 @@ function Piece({
     [shapes],
   )
 
+  // altura de cada forma, usada para escalonar a saida dos cacos
+  const heights = useMemo(
+    () =>
+      shapes.map((sp) => {
+        let min = Infinity
+        let max = -Infinity
+        for (let i = 1; i < sp.cloud.pos.length; i += 3) {
+          if (sp.cloud.pos[i] < min) min = sp.cloud.pos[i]
+          if (sp.cloud.pos[i] > max) max = sp.cloud.pos[i]
+        }
+        return { min, inv: 1 / Math.max(max - min, 0.0001) }
+      }),
+    [shapes],
+  )
+
   const seed = useMemo(() => {
     const a = new Float32Array(count * 3)
     for (let i = 0; i < count * 3; i++) a[i] = Math.random()
@@ -167,7 +185,7 @@ function Piece({
 
   const dummy = useMemo(() => new THREE.Object3D(), [])
   const normal = useMemo(() => new THREE.Vector3(), [])
-  const tilt = useMemo(() => new THREE.Vector3(), [])
+  const flight = useMemo(() => new THREE.Vector3(), [])
   const spinQ = useMemo(() => new THREE.Quaternion(), [])
   const colorA = useMemo(() => new THREE.Color(), [])
   const colorB = useMemo(() => new THREE.Color(), [])
@@ -219,19 +237,28 @@ function Piece({
     k.intensity = 55 + cur.glow * 110
     k.color.copy(colorA)
 
-    // quem esta em cena: a malha inteira nas pontas, os cacos no meio
-    const broken = from === to ? 0 : Math.sin(Math.PI * f)
-    const shown = Math.sqrt(broken)
-    const fadeOut = 1 - ramp(f, 0.06, 0.34)
-    const fadeIn = ramp(f, 0.66, 0.94)
+    // Quem esta em cena: a malha nas pontas, os cacos no meio. A malha sai
+    // antes das arestas e entra depois delas, entao a peca aparece
+    // desenhada primeiro e so depois enche, e ao sair deixa o desenho para
+    // tras por um instante.
+    const meshOut = 1 - ramp(f, 0.03, 0.26)
+    const edgeOut = 1 - ramp(f, 0.1, 0.42)
+    const edgeIn = ramp(f, 0.58, 0.84)
+    const meshIn = ramp(f, 0.78, 0.98)
 
     solids.current.forEach((solid, s) => {
       if (!solid) return
       let o = 0
-      if (from === to) o = s === from ? 1 : 0
-      else if (s === from) o = fadeOut
-      else if (s === to) o = fadeIn
-      solid.visible = o > 0.01
+      let oEdge = 0
+      if (from === to) o = oEdge = s === from ? 1 : 0
+      else if (s === from) {
+        o = meshOut
+        oEdge = edgeOut
+      } else if (s === to) {
+        o = meshIn
+        oEdge = edgeIn
+      }
+      solid.visible = o > 0.01 || oEdge > 0.01
       if (!solid.visible) return
       solid.scale.setScalar(cur.scale)
       for (const child of solid.children) {
@@ -249,50 +276,71 @@ function Piece({
           mat.emissive.lerp(colorA, 1 - Math.exp(-l * dt))
           mat.emissiveIntensity = 0.05 + cur.glow * 0.28
         } else {
-          mat.opacity = o * 0.45
+          mat.opacity = oEdge * 0.45
         }
       }
     })
 
-    sh.visible = shown > 0.01
+    sh.visible = from !== to && f > 0.002 && f < 0.998
     if (sh.visible) {
       const A = shapes[from].cloud
       const B = shapes[to].cloud
-      const e = ease(f)
-      const burst = broken * 0.5
-      const size = 0.05 * cur.scale * shown
-      const t = state.clock.elapsedTime
+      const base = 0.05 * cur.scale
+      const low = heights[from]
 
       for (let n = 0; n < count; n++) {
         const j = n * 3
-        let x = lerp(A.pos[j], B.pos[j], e) * cur.scale
-        let y = lerp(A.pos[j + 1], B.pos[j + 1], e) * cur.scale
-        let z = lerp(A.pos[j + 2], B.pos[j + 2], e) * cur.scale
 
+        // Cada caco tem a sua propria hora de sair, dada pela altura dele
+        // no objeto: a peca se abre de baixo para cima, como uma onda
+        // subindo, em vez de estourar inteira de uma vez.
+        const height = (A.pos[j + 1] - low.min) * low.inv
+        const fk = THREE.MathUtils.clamp((f - SPREAD * height) / (1 - SPREAD), 0, 1)
+        const ek = ease(fk)
+        const bk = Math.sin(Math.PI * fk)
+
+        let x = lerp(A.pos[j], B.pos[j], ek) * cur.scale
+        let y = lerp(A.pos[j + 1], B.pos[j + 1], ek) * cur.scale
+        let z = lerp(A.pos[j + 2], B.pos[j + 2], ek) * cur.scale
+
+        // A saida nao e radial pura: soma um empurrao lateral em torno do
+        // eixo vertical, e o caco descreve um arco. Trajetoria reta e o
+        // que denuncia movimento feito por interpolacao.
         const d = Math.hypot(x, y, z) || 1
-        const push = burst * (0.35 + seed[j] * 1.2)
-        x += (x / d) * push
-        y += (y / d) * push
-        z += (z / d) * push
+        const flat = Math.hypot(x, z) || 1
+        const swirl = (seed[j + 1] - 0.5) * 1.5 * bk
+        let vx = x / d + (-z / flat) * swirl
+        const vy = y / d
+        let vz = z / d + (x / flat) * swirl
+        const vl = Math.hypot(vx, vy, vz) || 1
+        vx /= vl
+        vz /= vl
+        const vyn = vy / vl
 
-        dummy.position.set(x, y, z)
-        // o caco deita sobre a casca do objeto, seguindo a normal da
-        // superficie: e assim que ele se encaixa de volta na malha
+        const amp = bk * (0.3 + seed[j] * 1.15)
+        dummy.position.set(x + vx * amp, y + vyn * amp, z + vz * amp)
+
+        // Parado, o caco deita sobre a casca do objeto pela normal da
+        // superficie. Voando, ele se alinha com a propria trajetoria e
+        // estica: e borrao de movimento por um centesimo do custo.
         normal
           .set(
-            lerp(A.nor[j], B.nor[j], e),
-            lerp(A.nor[j + 1], B.nor[j + 1], e),
-            lerp(A.nor[j + 2], B.nor[j + 2], e),
+            lerp(A.nor[j], B.nor[j], ek),
+            lerp(A.nor[j + 1], B.nor[j + 1], ek),
+            lerp(A.nor[j + 2], B.nor[j + 2], ek),
           )
           .normalize()
         dummy.quaternion.setFromUnitVectors(UP, normal)
-        if (!still) {
-          tilt.set(seed[j] - 0.5, seed[j + 1] - 0.5, seed[j + 2] - 0.5).normalize()
-          spinQ.setFromAxisAngle(tilt, burst * 5 + Math.sin(t + seed[j] * 6.3) * burst)
-          dummy.quaternion.multiply(spinQ)
+        if (bk > 0.01) {
+          flight.set(vx, vyn, vz)
+          spinQ.setFromUnitVectors(UP, flight)
+          dummy.quaternion.slerp(spinQ, bk)
         }
         dummy.rotateY(seed[j + 2] * 6.283)
-        dummy.scale.set(size, size * 0.35, size)
+
+        const size = base * Math.min(1, bk * 3.2)
+        const thin = 1 - bk * 0.45
+        dummy.scale.set(size * thin, size * (0.35 + bk * 1.5), size * thin)
         dummy.updateMatrix()
         sh.setMatrixAt(n, dummy.matrix)
       }
@@ -316,7 +364,11 @@ function Piece({
       // zero pelo caminho mais curto, senao a forma seguinte herda a
       // sobra de rotacao e aparece deitada
       spinAngle.current += cur.spinZ * dt
-      if (cur.spinZ < 0.05) {
+      // desenrola enquanto a peca esta em cacos, que e quando ninguem ve.
+      // Esperar o giro amortecer sozinho fazia a forma seguinte aterrissar
+      // torta e so depois se endireitar.
+      const shattered = from !== to && f > 0.15 && f < 0.995
+      if (cur.spinZ < 0.05 || (shattered && b.spinZ < 0.05)) {
         const wrapped = Math.atan2(Math.sin(spinAngle.current), Math.cos(spinAngle.current))
         spinAngle.current = THREE.MathUtils.damp(wrapped, 0, 2.2, dt)
       }

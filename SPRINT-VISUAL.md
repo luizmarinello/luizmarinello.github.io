@@ -107,7 +107,7 @@ sentir a página respirar sem mexer em cor nenhuma.
 
 ---
 
-## Bloco 3 — a virada entre as formas
+## Bloco 3 — a virada entre as formas  ✅ feito em 10/09/2026
 
 Hoje todos os cacos saem para fora ao mesmo tempo, na direção radial. É uma
 explosão de fogos. Dá para fazer parecer uma peça sendo desmontada.
@@ -127,9 +127,15 @@ Alongar o caco na direção em que ele está indo, proporcional à velocidade.
 É borrão de movimento por um centésimo do custo de borrão de movimento.
 
 ### 3.4 As arestas entrando por último (2h)
-Hoje a malha e as arestas aparecem juntas. Se as arestas desenharem sozinhas
-por um instante antes da malha encher, a peça parece estar sendo construída,
-não aparecendo pronta.
+Feito, e nos dois sentidos: ao chegar, as arestas desenham sozinhas antes da
+malha encher; ao sair, a malha dissolve primeiro e o desenho fica para trás
+mais um instante. A peça parece ser construída e desmontada, não aparecer e
+sumir pronta.
+
+**Achado de passagem:** a forma seguinte aterrissava torta. O ângulo de giro
+da engrenagem só começava a desenrolar depois que a rotação amortecia
+sozinha, o que acontecia tarde demais. Agora ele desenrola enquanto a peça
+está em cacos, que é quando ninguém vê.
 
 ---
 
