@@ -33,7 +33,7 @@ um item de 2h.
 
 ---
 
-## Bloco 1 — acabamento que está faltando
+## Bloco 1 — acabamento que está faltando  ✅ feito em 10/09/2026
 
 Barato, e é o que separa "site pessoal" de "site inacabado".
 
@@ -51,9 +51,14 @@ Feito com uma rota de build que renderiza a cena com o robô e o título em
 1200x630, ou uma captura estática da hero. A estática é mais barata e não
 quebra depois.
 
-### 1.3 Estado de foco visível nos cards (1h)
-Os botões já têm foco. Os cards de projeto e os chips não têm estado de
-hover nem de foco. Uma borda que acende no acento resolve os dois.
+### 1.3 Estados de interação (1h)
+**Entregue diferente do planejado.** O plano dizia hover nos cards de projeto
+e nos chips. Não foi feito, e de propósito: nenhum dos dois é clicável, e card
+que acende sem levar a lugar nenhum é affordance falsa. Entrou hover e foco em
+tudo que de fato interage (navegação, seletor de idioma, os dois botões do
+hero, o botão do exemplo, os links de contato) e, no lugar do hover dos
+painéis, a aresta clara no topo do vidro, que é acabamento de material e não
+promessa de clique.
 
 ---
 
