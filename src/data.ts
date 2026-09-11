@@ -46,6 +46,33 @@ export const stack: { label: L<string>; items: { name: string; slug: string | nu
   },
 ]
 
+/* Ficha tecnica curta do "sobre": chave e valor, tres colunas. */
+export const aboutSpecs: L<[string, string][]> = {
+  pt: [
+    ['Base', 'Cascavel, PR'],
+    ['Fuso', 'UTC-3'],
+    ['Idiomas', 'Português e inglês'],
+  ],
+  en: [
+    ['Based in', 'Cascavel, Brazil'],
+    ['Timezone', 'UTC-3'],
+    ['Languages', 'Portuguese and English'],
+  ],
+}
+
+/* Nome curto de cada prancha, na ordem do scroll. E o que aparece no
+   contador fixo do rodape. */
+export const figs: L<string>[] = [
+  { pt: 'Abertura', en: 'Opening' },
+  { pt: 'Quem escreve', en: 'Who writes' },
+  { pt: 'Projetos', en: 'Work' },
+  { pt: 'IA aplicada', en: 'Applied AI' },
+  { pt: 'Ferramentas', en: 'Tools' },
+  { pt: 'Trajetória', en: 'Path' },
+  { pt: 'Certificações', en: 'Certifications' },
+  { pt: 'Contato', en: 'Contact' },
+]
+
 export type Project = {
   id: string
   client: L<string>
@@ -267,6 +294,7 @@ export const t: Record<Lang, Record<string, string>> = {
     heroTitleA: 'Backend em Java.',
     heroTitleB: 'IA em produção.',
     heroSub: 'Construo plataformas internas que empresas usam todo dia. Spring Boot embaixo, Claude ligado no fluxo de trabalho.',
+    heroMeta: 'Dev full stack · Cascavel, PR · AWS Certified Developer',
     heroCtaWork: 'Ver projetos',
     heroCtaCv: 'Baixar CV',
     projectsTitle: 'Três sistemas rodando hoje',
@@ -299,6 +327,7 @@ export const t: Record<Lang, Record<string, string>> = {
     heroTitleA: 'Java on the backend.',
     heroTitleB: 'AI in production.',
     heroSub: 'I build internal platforms companies open every day. Spring Boot underneath, Claude wired into the real workflow.',
+    heroMeta: 'Full stack developer · Cascavel, Brazil · AWS Certified Developer',
     heroCtaWork: 'See the work',
     heroCtaCv: 'Download CV',
     projectsTitle: 'Three systems running today',

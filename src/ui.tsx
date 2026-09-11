@@ -50,22 +50,30 @@ export function Reveal({
   )
 }
 
+/* Cabecalho de figura: numero da prancha, fio, titulo grande e, se
+   houver, a legenda em serifa italica. */
 export function SectionTitle({
+  fig,
   children,
   lead,
   drift = 0,
 }: {
+  fig: string
   children: ReactNode
   lead?: string
   drift?: number
 }) {
   return (
     <Reveal drift={drift}>
-      <h2 className="max-w-[22ch] text-3xl leading-[1.08] font-medium tracking-[-0.025em] text-ink md:text-5xl">
+      <div className="flex items-center gap-4 text-accent">
+        <span className="tag">Fig. {fig}</span>
+        <span className="h-px flex-1 bg-line" aria-hidden="true" />
+      </div>
+      <h2 className="display mt-6 max-w-[18ch] text-[clamp(2.2rem,5vw,4.6rem)] text-ink uppercase">
         {children}
       </h2>
       {lead && (
-        <p className="mt-5 max-w-[58ch] text-base leading-relaxed text-muted md:text-lg">
+        <p className="mt-6 max-w-[40ch] font-serif text-2xl leading-[1.2] text-muted italic md:text-[2rem]">
           {lead}
         </p>
       )}
@@ -73,42 +81,81 @@ export function SectionTitle({
   )
 }
 
-/* Painel de vidro. Escurece o suficiente para o texto ficar legivel
-   por cima da cena 3D, e cai para fundo solido quando o sistema pede
-   menos transparencia. */
-export function Panel({
-  children,
-  className = '',
+/* Cantoneiras de visor: quatro cantos de 1px. */
+export function Corners({ className = '', size = 14 }: { className?: string; size?: number }) {
+  const s = `${size}px`
+  const c = 'absolute border-ink'
+  return (
+    <span className={`pointer-events-none absolute inset-0 ${className}`} aria-hidden="true">
+      <span className={`${c} top-0 left-0 border-t border-l`} style={{ width: s, height: s }} />
+      <span className={`${c} top-0 right-0 border-t border-r`} style={{ width: s, height: s }} />
+      <span className={`${c} bottom-0 left-0 border-b border-l`} style={{ width: s, height: s }} />
+      <span className={`${c} right-0 bottom-0 border-r border-b`} style={{ width: s, height: s }} />
+    </span>
+  )
+}
+
+/* Campo de imagem. Com arquivo, mostra a imagem com cantoneiras. Sem,
+   mostra a hachura de "reservado" com a medida, como num desenho que
+   ainda espera a foto. Some sozinho quando o arquivo for apontado em
+   data.ts. */
+export function Frame({
+  src,
+  alt,
+  label,
+  ratio,
 }: {
-  children: ReactNode
-  className?: string
+  src: string | null
+  alt: string
+  label: string
+  ratio: string
 }) {
   return (
-    <div
-      className={`rounded-[14px] border border-line bg-surface/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl supports-[not(backdrop-filter:blur(0))]:bg-surface ${className}`}
-    >
-      {children}
+    <div className="relative p-3">
+      <Corners />
+      {src ? (
+        <img src={src} alt={alt} className="w-full object-cover" style={{ aspectRatio: ratio }} />
+      ) : (
+        <div
+          className="hatch flex items-center justify-center border border-line"
+          style={{ aspectRatio: ratio }}
+        >
+          <span className="tag bg-bg px-3 py-1.5 text-muted">{label}</span>
+        </div>
+      )}
     </div>
   )
 }
 
-export function LogoChip({ name, slug }: { name: string; slug: string | null }) {
+/* Botao de desenho tecnico: retangulo de 1px, etiqueta mono. `solid`
+   e o unico cheio da tela. */
+export function Button({
+  href,
+  children,
+  solid = false,
+  download = false,
+  external = false,
+}: {
+  href: string
+  children: ReactNode
+  solid?: boolean
+  download?: boolean
+  external?: boolean
+}) {
+  const base =
+    'tag inline-flex items-center gap-3 px-5 py-3.5 transition duration-150 active:scale-[0.97]'
+  const look = solid
+    ? 'bg-ink text-bg hover:bg-accent hover:text-white'
+    : 'border border-ink/40 text-ink hover:border-accent hover:text-accent'
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-line bg-white/[0.03] px-3.5 py-1.5 text-sm text-ink/90">
-      {slug && (
-        <img
-          src={`https://cdn.simpleicons.org/${slug}/8d8d98`}
-          alt=""
-          width={14}
-          height={14}
-          loading="lazy"
-          className="h-3.5 w-3.5 opacity-80"
-          onError={(e) => {
-            e.currentTarget.style.display = 'none'
-          }}
-        />
-      )}
-      {name}
-    </span>
+    <a
+      href={href}
+      download={download || undefined}
+      target={external ? '_blank' : undefined}
+      rel={external ? 'noreferrer' : undefined}
+      className={`${base} ${look}`}
+    >
+      {children}
+    </a>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useReducedMotion } from 'motion/react'
 import { ArrowUpRight, Play, ArrowClockwise } from '@phosphor-icons/react'
 import {
+  aboutSpecs,
   aiDemo,
   aiSteps,
   certs,
@@ -13,48 +14,39 @@ import {
   timeline,
   type Lang,
 } from './data'
-import { LogoChip, Panel, Reveal, SectionTitle } from './ui'
+import { Button, Frame, Reveal, SectionTitle } from './ui'
 
-const wrap = 'mx-auto w-full max-w-[1180px] px-5 md:px-8'
-
-/* Espaco reservado para imagem que ainda nao existe. Some sozinho
-   assim que o arquivo for apontado em data.ts. */
-function Slot({ label, ratio }: { label: string; ratio: string }) {
-  return (
-    <div
-      className="flex items-center justify-center rounded-[14px] border border-dashed border-line bg-white/[0.02]"
-      style={{ aspectRatio: ratio }}
-    >
-      <span className="px-4 text-center font-mono text-xs tracking-wide text-muted">
-        {label}
-      </span>
-    </div>
-  )
-}
+const wrap = 'mx-auto w-full max-w-[1280px] px-5 md:px-8'
 
 export function About({ lang }: { lang: Lang }) {
   const c = t[lang]
   return (
     <section id="sobre" className={`${wrap} py-28 md:py-40`}>
-      <div className="grid items-center gap-10 md:grid-cols-12 md:gap-16">
+      <div className="grid items-start gap-12 md:grid-cols-12 md:gap-16">
         <Reveal className="md:col-span-5" drift={-24}>
-          {contact.photo ? (
-            <img
-              src={contact.photo}
-              alt="Luiz Henrique Marinello da Rosa"
-              className="w-full rounded-[14px] border border-line object-cover"
-              style={{ aspectRatio: '4 / 5' }}
-            />
-          ) : (
-            <Slot label={`${c.photoSlot} 900 x 1125`} ratio="4 / 5" />
-          )}
+          <Frame
+            src={contact.photo}
+            alt="Luiz Henrique Marinello da Rosa"
+            label={`${c.photoSlot} 900 × 1125`}
+            ratio="4 / 5"
+          />
         </Reveal>
         <div className="md:col-span-7">
-          <SectionTitle drift={24}>{c.aboutTitle}</SectionTitle>
+          <SectionTitle fig="02" drift={24}>
+            {c.aboutTitle}
+          </SectionTitle>
           <Reveal delay={0.05} drift={24}>
-            <p className="mt-6 max-w-[62ch] text-base leading-relaxed text-muted md:text-lg">
+            <p className="mt-8 max-w-[60ch] text-lg leading-relaxed text-ink/85 md:text-xl">
               {c.aboutBody}
             </p>
+            <dl className="mt-10 grid grid-cols-3 border-t border-line">
+              {pick(aboutSpecs, lang).map(([k, v]) => (
+                <div key={k} className="border-r border-line py-4 pr-4 last:border-r-0">
+                  <dt className="tag text-muted">{k}</dt>
+                  <dd className="mt-2 text-sm text-ink md:text-base">{v}</dd>
+                </div>
+              ))}
+            </dl>
           </Reveal>
         </div>
       </div>
@@ -62,67 +54,64 @@ export function About({ lang }: { lang: Lang }) {
   )
 }
 
-/* Pilha grudenta: cada projeto para no topo e o proximo sobe por cima.
-   Feito so com position sticky, sem ouvir scroll. */
+/* Lista de pecas. Cada projeto e uma linha da prancha: numero vazado,
+   especificacao, itens numerados e o campo do print. Sem card: os fios
+   horizontais sao a unica separacao. */
 export function Projects({ lang }: { lang: Lang }) {
   const c = t[lang]
   return (
-    <section id="projetos" className="py-24 md:py-32">
-      <div className={wrap}>
-        <SectionTitle lead={c.projectsLead} drift={-22}>{c.projectsTitle}</SectionTitle>
-      </div>
+    <section id="projetos" className={`${wrap} py-24 md:py-32`}>
+      <SectionTitle fig="03" lead={c.projectsLead} drift={-22}>
+        {c.projectsTitle}
+      </SectionTitle>
 
-      <div className={`${wrap} mt-14 md:mt-20`}>
+      <div className="mt-16 md:mt-24">
         {projects.map((p, i) => (
-          <div key={p.id} className="sticky top-24 pb-6" style={{ zIndex: 10 + i }}>
-            <Panel className="overflow-hidden p-6 md:p-10">
-              <div className="grid gap-8 md:grid-cols-12 md:gap-12">
-                <div className="md:col-span-7">
-                  <div className="flex items-baseline gap-3 font-mono text-xs text-muted">
-                    <span className="text-accent">{p.year}</span>
-                    <span>{pick(p.client, lang)}</span>
-                  </div>
-                  <h3 className="mt-3 text-2xl leading-tight font-medium tracking-[-0.02em] text-ink md:text-4xl">
-                    {pick(p.name, lang)}
-                  </h3>
-                  <p className="mt-4 max-w-[54ch] leading-relaxed text-muted">
-                    {pick(p.summary, lang)}
-                  </p>
-                  <ul className="mt-6 grid gap-3">
-                    {pick(p.points, lang).map((point) => (
-                      <li key={point} className="flex gap-3 text-sm leading-relaxed text-ink/80">
-                        <span className="mt-2 h-px w-4 shrink-0 bg-accent/70" />
-                        {point}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-7 flex flex-wrap gap-2">
-                    {p.tech.map((tech) => (
-                      <span
-                        key={tech}
-                        className="rounded-full border border-line px-3 py-1 font-mono text-[11px] text-muted"
-                      >
-                        {tech}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="md:col-span-5">
-                  {p.shot ? (
-                    <img
-                      src={p.shot}
-                      alt={String(pick(p.name, lang))}
-                      className="w-full rounded-[14px] border border-line object-cover"
-                      style={{ aspectRatio: '4 / 3' }}
-                    />
-                  ) : (
-                    <Slot label={`${c.shotSlot} 1200 x 900`} ratio="4 / 3" />
-                  )}
-                </div>
+          <Reveal key={p.id} drift={i % 2 ? 18 : -18}>
+            <article className="grid gap-8 border-t border-line py-12 md:grid-cols-12 md:gap-10 md:py-16">
+              <div className="md:col-span-2">
+                <span className="outline-num display block text-[clamp(4rem,9vw,8.5rem)]">
+                  0{i + 1}
+                </span>
               </div>
-            </Panel>
-          </div>
+              <div className="md:col-span-6">
+                <div className="tag flex flex-wrap gap-x-5 gap-y-1 text-muted">
+                  <span className="text-accent">{p.year}</span>
+                  <span>{pick(p.client, lang)}</span>
+                </div>
+                <h3 className="display mt-4 text-[clamp(2rem,4.2vw,3.8rem)] text-ink">
+                  {pick(p.name, lang)}
+                </h3>
+                <p className="mt-5 max-w-[50ch] font-serif text-xl leading-snug text-muted italic md:text-2xl">
+                  {pick(p.summary, lang)}
+                </p>
+                <ol className="mt-8 border-t border-line">
+                  {pick(p.points, lang).map((point, k) => (
+                    <li
+                      key={point}
+                      className="grid grid-cols-[3.2rem_1fr] gap-3 border-b border-line py-3.5 text-sm leading-relaxed text-ink/85"
+                    >
+                      <span className="tag pt-1 text-accent">
+                        {i + 1}.{k + 1}
+                      </span>
+                      {point}
+                    </li>
+                  ))}
+                </ol>
+                <p className="tag mt-6 text-muted">{p.tech.join(' / ')}</p>
+              </div>
+              <div className="md:col-span-4">
+                <Frame
+                  src={p.shot}
+                  alt={String(pick(p.name, lang))}
+                  label={`${c.shotSlot} 1200 × 900`}
+                  ratio="4 / 3"
+                />
+              </div>
+            </article>
+          </Reveal>
         ))}
+        <div className="border-t border-line" aria-hidden="true" />
       </div>
     </section>
   )
@@ -155,8 +144,9 @@ function Replay({ lang }: { lang: Lang }) {
   const done = n >= aiDemo.response.length
 
   return (
-    <Panel className="overflow-hidden">
-      <div className="border-b border-line px-5 py-3 font-mono text-[11px] tracking-wide text-muted">
+    <div className="border border-line bg-bg/80">
+      <div className="tag flex items-center gap-3 border-b border-line px-5 py-3 text-muted">
+        <span className="h-1.5 w-1.5 bg-signal" aria-hidden="true" />
         {c.aiDemoLabel}
       </div>
       <pre className="overflow-x-auto px-5 py-4 font-mono text-[11.5px] leading-relaxed text-muted md:text-xs">
@@ -164,19 +154,19 @@ function Replay({ lang }: { lang: Lang }) {
       </pre>
       <pre className="min-h-[19rem] overflow-x-auto border-t border-line px-5 py-4 font-mono text-[11.5px] leading-relaxed text-ink/90 md:text-xs">
         {aiDemo.response.slice(0, n)}
-        {!done && <span className="text-accent">|</span>}
+        {!done && <span className="text-signal">▌</span>}
       </pre>
       <div className="border-t border-line p-3">
         <button
           type="button"
           onPointerDown={run}
-          className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-4 py-2 text-sm text-ink transition duration-150 hover:bg-white/[0.12] active:scale-[0.97]"
+          className="tag inline-flex items-center gap-2 border border-ink/40 px-4 py-2.5 text-ink transition duration-150 hover:border-accent hover:text-accent active:scale-[0.97]"
         >
-          {done && n > 0 ? <ArrowClockwise size={15} /> : <Play size={15} weight="fill" />}
+          {done && n > 0 ? <ArrowClockwise size={14} /> : <Play size={14} weight="fill" />}
           {done && n > 0 ? c.aiDemoReplay : c.aiDemoPlay}
         </button>
       </div>
-    </Panel>
+    </div>
   )
 }
 
@@ -184,20 +174,20 @@ export function Ai({ lang }: { lang: Lang }) {
   const c = t[lang]
   return (
     <section id="ia" className={`${wrap} py-28 md:py-40`}>
-      <SectionTitle lead={c.aiLead} drift={22}>{c.aiTitle}</SectionTitle>
-      <div className="mt-14 grid gap-12 md:grid-cols-12 md:gap-16">
-        <ol className="order-1 rounded-[14px] border border-line bg-surface/55 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl supports-[not(backdrop-filter:blur(0))]:bg-surface md:order-2 md:col-span-6 md:p-8">
+      <SectionTitle fig="04" lead={c.aiLead} drift={22}>
+        {c.aiTitle}
+      </SectionTitle>
+      <div className="mt-16 grid gap-12 md:grid-cols-12 md:gap-16">
+        <ol className="order-1 bg-bg/70 md:order-2 md:col-span-6">
           {aiSteps.map((s, i) => (
             <Reveal key={i} delay={i * 0.05}>
-              <li className="relative flex gap-5 pb-9 last:pb-0">
-                <span
-                  className="absolute top-6 bottom-0 left-[7px] w-px bg-line"
-                  aria-hidden="true"
-                />
-                <span className="mt-1.5 h-3.5 w-3.5 shrink-0 rounded-full border border-accent bg-bg" />
+              <li className="grid grid-cols-[3.5rem_1fr] gap-4 border-t border-line py-6 last:border-b">
+                <span className="tag pt-1.5 text-accent">0{i + 1}</span>
                 <div>
-                  <h3 className="text-lg font-medium text-ink">{pick(s.title, lang)}</h3>
-                  <p className="mt-1.5 max-w-[46ch] text-sm leading-relaxed text-muted">
+                  <h3 className="text-xl font-medium tracking-[-0.01em] text-ink">
+                    {pick(s.title, lang)}
+                  </h3>
+                  <p className="mt-2 max-w-[46ch] text-sm leading-relaxed text-muted">
                     {pick(s.body, lang)}
                   </p>
                 </div>
@@ -216,23 +206,31 @@ export function Ai({ lang }: { lang: Lang }) {
 export function Stack({ lang }: { lang: Lang }) {
   const c = t[lang]
   return (
-    <section className={`${wrap} py-20 md:py-28`}>
-      <SectionTitle drift={18}>{c.stackTitle}</SectionTitle>
-      <div className="mt-10 grid gap-8">
+    <section id="ferramentas" className={`${wrap} py-20 md:py-28`}>
+      <SectionTitle fig="05" drift={18}>
+        {c.stackTitle}
+      </SectionTitle>
+      <div className="mt-12">
         {stack.map((group, i) => (
           <Reveal key={group.label.pt} delay={i * 0.05} drift={i % 2 ? 16 : -16}>
-            <div className="grid gap-4 border-t border-line pt-6 md:grid-cols-12">
-              <h3 className="font-mono text-xs tracking-wide text-muted md:col-span-3">
-                {pick(group.label, lang)}
-              </h3>
-              <div className="flex flex-wrap gap-2 md:col-span-9">
-                {group.items.map((item) => (
-                  <LogoChip key={item.name} name={item.name} slug={item.slug} />
+            <div className="grid gap-3 border-t border-line py-6 md:grid-cols-12 md:gap-8">
+              <h3 className="tag pt-2 text-muted md:col-span-3">{pick(group.label, lang)}</h3>
+              <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xl font-medium tracking-[-0.02em] text-ink md:col-span-7 md:text-2xl">
+                {group.items.map((item, k) => (
+                  <li key={item.name} className="flex gap-3">
+                    {item.name}
+                    {k < group.items.length - 1 && (
+                      <span className="text-muted/50" aria-hidden="true">
+                        /
+                      </span>
+                    )}
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           </Reveal>
         ))}
+        <div className="border-t border-line" aria-hidden="true" />
       </div>
     </section>
   )
@@ -242,26 +240,27 @@ export function Path({ lang }: { lang: Lang }) {
   const c = t[lang]
   return (
     <section id="trajetoria" className={`${wrap} py-24 md:py-32`}>
-      <SectionTitle drift={-18}>{c.pathTitle}</SectionTitle>
-      <div className="mt-12 grid gap-px overflow-hidden rounded-[14px] border border-line bg-line">
+      <SectionTitle fig="06" drift={-18}>
+        {c.pathTitle}
+      </SectionTitle>
+      <div className="mt-12">
         {timeline.map((item, i) => (
           <Reveal key={i} delay={i * 0.04}>
-            <div className="grid gap-3 bg-surface/75 p-6 backdrop-blur-xl supports-[not(backdrop-filter:blur(0))]:bg-surface md:grid-cols-12 md:gap-8 md:p-8">
-              <div className="font-mono text-xs text-accent md:col-span-3">
-                {pick(item.period, lang)}
-              </div>
+            <div className="grid gap-3 border-t border-line py-7 md:grid-cols-12 md:gap-8">
+              <div className="tag pt-1.5 text-accent md:col-span-3">{pick(item.period, lang)}</div>
               <div className="md:col-span-9">
-                <h3 className="text-lg font-medium text-ink">
+                <h3 className="text-2xl font-medium tracking-[-0.02em] text-ink md:text-3xl">
                   {pick(item.role, lang)}
                 </h3>
-                <p className="mt-0.5 text-sm text-muted">{pick(item.org, lang)}</p>
-                <p className="mt-3 max-w-[62ch] text-sm leading-relaxed text-ink/75">
+                <p className="mt-1 font-serif text-lg text-muted italic">{pick(item.org, lang)}</p>
+                <p className="mt-4 max-w-[62ch] text-sm leading-relaxed text-ink/80 md:text-base">
                   {pick(item.body, lang)}
                 </p>
               </div>
             </div>
           </Reveal>
         ))}
+        <div className="border-t border-line" aria-hidden="true" />
       </div>
     </section>
   )
@@ -270,22 +269,20 @@ export function Path({ lang }: { lang: Lang }) {
 export function Certs({ lang }: { lang: Lang }) {
   const c = t[lang]
   return (
-    <section className={`${wrap} py-20 md:py-28`}>
-      <SectionTitle drift={18}>{c.certsTitle}</SectionTitle>
-      <div className="mt-10 grid gap-4 md:grid-cols-3">
+    <section id="certificacoes" className={`${wrap} py-20 md:py-28`}>
+      <SectionTitle fig="07" drift={18}>
+        {c.certsTitle}
+      </SectionTitle>
+      <div className="mt-12 grid gap-8 md:grid-cols-3 md:gap-10">
         {certs.map((cert, i) => (
           <Reveal key={i} delay={i * 0.05} drift={(i - 1) * 20}>
-            <Panel className="flex h-full flex-col justify-between gap-8 p-6">
-              <span className="font-mono text-sm tracking-wide text-accent">{cert.mark}</span>
+            <div className="flex h-full flex-col justify-between gap-10 border-t border-line pt-6">
+              <span className="display text-4xl text-accent md:text-5xl">{cert.mark}</span>
               <div>
-                <h3 className="text-base leading-snug font-medium text-ink">
-                  {pick(cert.name, lang)}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted">
-                  {pick(cert.note, lang)}
-                </p>
+                <h3 className="text-lg leading-snug font-medium text-ink">{pick(cert.name, lang)}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{pick(cert.note, lang)}</p>
               </div>
-            </Panel>
+            </div>
           </Reveal>
         ))}
       </div>
@@ -301,39 +298,39 @@ export function Contact({ lang }: { lang: Lang }) {
   ].filter(Boolean) as { label: string; href: string }[]
 
   return (
-    <section id="contato" className={`${wrap} py-32 text-center md:py-44`}>
+    <section id="contato" className={`${wrap} py-32 md:py-44`}>
       <Reveal drift={14}>
-        <h2 className="mx-auto max-w-[14ch] text-4xl leading-[1.02] font-medium tracking-[-0.03em] text-ink md:text-7xl">
+        <div className="flex items-center gap-4 text-accent">
+          <span className="tag">Fig. 08</span>
+          <span className="h-px flex-1 bg-line" aria-hidden="true" />
+        </div>
+        <h2 className="display mt-8 text-[clamp(3.2rem,12vw,11rem)] text-ink uppercase">
           {c.contactTitle}
         </h2>
-        <p className="mx-auto mt-6 max-w-[48ch] leading-relaxed text-muted">
-          {c.contactBody}
-        </p>
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-          {contact.email && (
-            <a
-              href={`mailto:${contact.email}`}
-              className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-medium text-[#0a0a0b] transition duration-150 hover:brightness-110 active:scale-[0.97]"
-            >
-              {c.contactCta}
-              <ArrowUpRight size={16} weight="bold" />
-            </a>
-          )}
-          {links.map((l) => (
-            <a
-              key={l.label}
-              href={l.href}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-line bg-white/[0.03] px-6 py-3 text-ink transition duration-150 hover:border-accent/50 hover:bg-white/[0.07] active:scale-[0.97]"
-            >
-              {l.label}
-              <ArrowUpRight size={16} />
-            </a>
-          ))}
+        <div className="mt-10 grid gap-10 md:grid-cols-12">
+          <p className="max-w-[34ch] font-serif text-2xl leading-[1.2] text-muted italic md:col-span-6 md:text-3xl">
+            {c.contactBody}
+          </p>
+          <div className="flex flex-wrap items-start gap-3 md:col-span-6 md:justify-end">
+            {contact.email && (
+              <Button href={`mailto:${contact.email}`} solid>
+                {c.contactCta}
+                <ArrowUpRight size={14} weight="bold" />
+              </Button>
+            )}
+            {links.map((l) => (
+              <Button key={l.label} href={l.href} external>
+                {l.label}
+                <ArrowUpRight size={14} />
+              </Button>
+            ))}
+          </div>
         </div>
       </Reveal>
-      <p className="mt-24 font-mono text-xs text-muted">{c.footerNote}</p>
+      <div className="tag mt-28 flex flex-wrap justify-between gap-4 border-t border-line pt-5 text-muted">
+        <span>{c.footerNote}</span>
+        <span>Cascavel, PR · UTC-3</span>
+      </div>
     </section>
   )
 }
