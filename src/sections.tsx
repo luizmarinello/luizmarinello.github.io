@@ -68,7 +68,10 @@ export function Projects({ lang }: { lang: Lang }) {
       <div className="mt-16 md:mt-24">
         {projects.map((p, i) => (
           <Reveal key={p.id} drift={i % 2 ? 18 : -18}>
-            <article className="grid gap-8 border-t border-line py-12 md:grid-cols-12 md:gap-10 md:py-16">
+            <article
+              id={p.id}
+              className="grid scroll-mt-24 gap-8 border-t border-line py-12 md:grid-cols-12 md:gap-10 md:py-16"
+            >
               <div className="md:col-span-2">
                 <span className="outline-num display block text-[clamp(4rem,9vw,8.5rem)]">
                   0{i + 1}

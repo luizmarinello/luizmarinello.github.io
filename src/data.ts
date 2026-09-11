@@ -73,6 +73,44 @@ export const figs: L<string>[] = [
   { pt: 'Contato', en: 'Contact' },
 ]
 
+/* Nome de cada primitiva das pecas 3D, na ordem em que shapes.ts as
+   monta. E o que aparece na etiqueta quando o cursor passa por uma
+   parte. No rack dos projetos cada unidade e um sistema. */
+const rb = (pt: string, en: string): L<string> => ({ pt, en })
+export const partNames: L<string>[][] = [
+  // robo
+  [
+    rb('Antena', 'Antenna'), rb('Antena', 'Antenna'), rb('Cabeça', 'Head'), rb('Visor', 'Visor'),
+    rb('Orelha', 'Ear'), rb('Orelha', 'Ear'), rb('Pescoço', 'Neck'), rb('Tronco', 'Torso'),
+    rb('Painel', 'Panel'), rb('Braço', 'Arm'), rb('Braço', 'Arm'), rb('Mão', 'Hand'), rb('Mão', 'Hand'),
+    rb('Perna', 'Leg'), rb('Perna', 'Leg'), rb('Pé', 'Foot'), rb('Pé', 'Foot'),
+  ],
+  // rack: tres unidades, duas primitivas cada
+  [
+    rb('BellaDesk', 'BellaDesk'), rb('BellaDesk', 'BellaDesk'),
+    rb('BellaBI', 'BellaBI'), rb('BellaBI', 'BellaBI'),
+    rb('Disparo da saúde', 'Health messaging'), rb('Disparo da saúde', 'Health messaging'),
+  ],
+  // chip: corpo, marca e 28 pinos
+  [rb('Encapsulamento', 'Package'), rb('Marca', 'Mark'), ...Array.from({ length: 28 }, () => rb('Pino', 'Pin'))],
+  // engrenagem: aro, coroa, cubo, 8 dentes, 4 raios
+  [
+    rb('Aro', 'Rim'), rb('Coroa', 'Ring'), rb('Cubo', 'Hub'),
+    ...Array.from({ length: 8 }, () => rb('Dente', 'Tooth')),
+    ...Array.from({ length: 4 }, () => rb('Raio', 'Spoke')),
+  ],
+  // foguete: bico, corpo, faixa, bocal, 3 aletas
+  [
+    rb('Bico', 'Nose cone'), rb('Corpo', 'Body'), rb('Faixa', 'Band'), rb('Bocal', 'Nozzle'),
+    rb('Aleta', 'Fin'), rb('Aleta', 'Fin'), rb('Aleta', 'Fin'),
+  ],
+  // cristal
+  [rb('Casca', 'Shell'), rb('Núcleo', 'Core')],
+]
+
+/** Unidade do rack -> id do projeto na pagina. */
+export const rackTargets = ['belladesk', 'bellabi', 'sus']
+
 export type Project = {
   id: string
   client: L<string>

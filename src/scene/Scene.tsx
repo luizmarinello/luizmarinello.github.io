@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { scrollState } from './scrollState'
-import { ORDER, buildShapes } from './shapes'
+import { ORDER, buildShapes, partAt } from './shapes'
+import { partNames, rackTargets } from '../data'
+import { useMedia } from '../ui'
 
 /* A peca e um desenho de engenharia: as arestas carregam a forma e a
    malha por baixo e so um fantasma, para dar volume. Na folha de tinta
@@ -26,28 +28,40 @@ type Stage = {
   spinZ: number
   x: number
   y: number
+  /** Camera: orbita em torno do eixo vertical, elevacao, distancia
+      focal e um leve tombo lateral. E o "jogo de camera" de cada
+      prancha: de topo nos projetos, macro no chip, de baixo no foguete. */
+  az: number
+  el: number
+  fov: number
+  roll: number
 }
 
 const STAGES: Stage[] = [
   // hero: o robo, a direita
-  { scale: 0.95, exposure: 1.0, glow: 0.25, color: '#5b7cff', camZ: 4.6, spinZ: 0, x: 2.0, y: 0.35 },
+  { scale: 0.86, exposure: 1.0, glow: 0.25, color: '#5b7cff', camZ: 4.6, spinZ: 0, x: 2.0, y: 0.15, az: 0.22, el: -0.08, fov: 42, roll: 0 },
   // sobre: o mesmo robo, cruza para a esquerda, por cima da moldura da foto
-  { scale: 0.88, exposure: 1.0, glow: 0.3, color: '#2b4bff', camZ: 4.4, spinZ: 0, x: -2.3, y: 0.2 },
+  { scale: 0.88, exposure: 1.0, glow: 0.3, color: '#2b4bff', camZ: 4.4, spinZ: 0, x: -2.3, y: 0.2, az: -0.5, el: 0.18, fov: 40, roll: 0 },
   // projetos: tres unidades empilhadas, a direita, por cima dos campos de print
-  { scale: 0.9, exposure: 1.06, glow: 0.4, color: '#2b4bff', camZ: 4.2, spinZ: 0, x: 2.3, y: -0.05 },
+  { scale: 0.58, exposure: 1.06, glow: 0.4, color: '#2b4bff', camZ: 4.6, spinZ: 0, x: 2.3, y: -0.05, az: 0.35, el: 0.8, fov: 40, roll: 0 },
   // ia aplicada: o chip em brasa. A pagina inteira clareia aqui, que e a
   // secao que mais vende ele
-  { scale: 0.95, exposure: 1.14, glow: 0.68, color: '#ff5a1f', camZ: 4.0, spinZ: 0, x: -2.3, y: 0.1 },
+  { scale: 0.8, exposure: 1.14, glow: 0.68, color: '#ff5a1f', camZ: 4.4, spinZ: 0, x: -2.3, y: 0.1, az: -0.12, el: 0.22, fov: 36, roll: 0 },
   // ferramentas: a engrenagem, a unica peca que gira de verdade. Menor e
   // mais para a borda, para nao passar por cima da lista de nomes
-  { scale: 0.62, exposure: 1.06, glow: 0.42, color: '#5b7cff', camZ: 4.2, spinZ: 0.42, x: 2.9, y: -0.05 },
+  { scale: 0.62, exposure: 1.06, glow: 0.42, color: '#5b7cff', camZ: 4.2, spinZ: 0.42, x: 2.9, y: -0.05, az: 0, el: 0, fov: 42, roll: 0.05 },
   // trajetoria: o foguete, a esquerda
-  { scale: 0.85, exposure: 1.0, glow: 0.4, color: '#2b4bff', camZ: 4.4, spinZ: 0, x: -2.2, y: 0.1 },
+  { scale: 0.85, exposure: 1.0, glow: 0.4, color: '#2b4bff', camZ: 4.4, spinZ: 0, x: -2.2, y: 0.1, az: 0.3, el: -0.45, fov: 44, roll: 0 },
   // certificacoes: o cristal, a direita
-  { scale: 0.8, exposure: 1.1, glow: 0.5, color: '#2b4bff', camZ: 4.4, spinZ: 0.1, x: 2.2, y: 0.15 },
+  { scale: 0.8, exposure: 1.1, glow: 0.5, color: '#2b4bff', camZ: 4.4, spinZ: 0.1, x: 2.2, y: 0.15, az: 0.9, el: 0.25, fov: 40, roll: -0.04 },
   // contato: o robo de novo, a direita e recuado, fora do titulo gigante
-  { scale: 1.0, exposure: 1.14, glow: 0.55, color: '#ff5a1f', camZ: 5.6, spinZ: 0, x: 2.2, y: 0.55 },
+  { scale: 1.0, exposure: 1.14, glow: 0.55, color: '#ff5a1f', camZ: 5.6, spinZ: 0, x: 2.2, y: 0.55, az: -0.2, el: 0.05, fov: 42, roll: 0 },
 ]
+
+/* Cursor em coordenadas de tela normalizadas (-1 a 1) e em pixels, e o
+   arrasto em andamento. Fora do React: quem le e o loop de render. */
+const pointer = { x: 0, y: 0, px: 0, py: 0, moved: false, inside: false }
+const drag = { on: false, x0: 0, lastX: 0, vel: 0, angle: 0, moved: false }
 
 /* Traco na folha de tinta e na de papel. */
 const LINE_INK = new THREE.Color('#dfe5ff')
@@ -146,11 +160,13 @@ function Piece({
   still,
   narrow,
   shell,
+  label,
 }: {
   count: number
   still: boolean
   narrow: boolean
   shell: React.RefObject<HTMLDivElement | null>
+  label: React.RefObject<HTMLDivElement | null>
 }) {
   const shapes = useMemo(() => buildShapes(count), [count])
   const group = useRef<THREE.Group>(null)
@@ -202,8 +218,74 @@ function Piece({
   const colorA = useMemo(() => new THREE.Color(), [])
   const colorB = useMemo(() => new THREE.Color(), [])
   const line = useMemo(() => new THREE.Color(), [])
-  const live = useRef({ ...STAGES[0], tone: 0 })
+  const live = useRef({ ...STAGES[0], tone: 0, pax: 0, pel: 0 })
   const spinAngle = useRef(0)
+  const hls = useRef<(THREE.LineSegments | null)[]>([])
+  const hover = useRef({ shape: -1, part: -1 })
+  const raycaster = useMemo(() => new THREE.Raycaster(), [])
+  const ndc = useMemo(() => new THREE.Vector2(), [])
+
+  /* Mouse: paralaxe de camera, etiqueta da parte sob o cursor e arrasto
+     para girar. So no desktop; no toque arrastar e rolar a pagina. */
+  useEffect(() => {
+    if (narrow || still) return
+    const onMove = (e: PointerEvent) => {
+      pointer.x = (e.clientX / window.innerWidth) * 2 - 1
+      pointer.y = -(e.clientY / window.innerHeight) * 2 + 1
+      pointer.px = e.clientX
+      pointer.py = e.clientY
+      pointer.moved = true
+      if (drag.on) {
+        drag.vel = (e.clientX - drag.lastX) * 0.007
+        drag.angle += drag.vel
+        drag.lastX = e.clientX
+        if (Math.abs(e.clientX - drag.x0) > 4) drag.moved = true
+      }
+    }
+    const onDown = (e: PointerEvent) => {
+      // so pega a peca se o cursor estiver sobre ela; texto continua
+      // selecionavel no resto da pagina
+      if (hover.current.part < 0 || e.button !== 0) return
+      if ((e.target as Element).closest?.('a, button')) return
+      drag.on = true
+      drag.moved = false
+      drag.x0 = drag.lastX = e.clientX
+      document.body.style.cursor = 'grabbing'
+      document.body.style.userSelect = 'none'
+    }
+    const onUp = () => {
+      if (!drag.on) return
+      drag.on = false
+      document.body.style.cursor = hover.current.part >= 0 ? 'grab' : ''
+      document.body.style.userSelect = ''
+      // clique seco numa unidade do rack leva ao projeto dela
+      if (!drag.moved && hover.current.shape === 1) {
+        const id = rackTargets[Math.floor(hover.current.part / 2)]
+        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }
+    const onLeave = () => {
+      pointer.inside = false
+      pointer.moved = true
+    }
+    const onEnter = () => {
+      pointer.inside = true
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerdown', onDown)
+    window.addEventListener('pointerup', onUp)
+    document.addEventListener('pointerleave', onLeave)
+    document.addEventListener('pointerenter', onEnter)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('pointerup', onUp)
+      document.removeEventListener('pointerleave', onLeave)
+      document.removeEventListener('pointerenter', onEnter)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [narrow, still])
 
   useFrame((state, dt) => {
     const g = group.current
@@ -234,6 +316,15 @@ function Piece({
     cur.y = damp(cur.y, lerp(a.y, b.y, f))
     cur.exposure = damp(cur.exposure, lerp(a.exposure, b.exposure, f))
     cur.tone = damp(cur.tone, scrollState.tone)
+    cur.az = damp(cur.az, lerp(a.az, b.az, f))
+    cur.el = damp(cur.el, lerp(a.el, b.el, f))
+    cur.fov = damp(cur.fov, lerp(a.fov, b.fov, f))
+    cur.roll = damp(cur.roll, lerp(a.roll, b.roll, f))
+    // paralaxe: a camera acompanha o cursor um pouco, e volta ao centro
+    // quando ele sai da janela
+    const par = !still && !narrow && pointer.inside
+    cur.pax = damp(cur.pax, par ? pointer.x * 0.14 : 0)
+    cur.pel = damp(cur.pel, par ? pointer.y * 0.09 : 0)
     state.gl.toneMappingExposure = cur.exposure
 
     // o quanto o objeto pode andar para o lado depende da largura dele e
@@ -280,6 +371,7 @@ function Piece({
       if (!solid.visible) return
       solid.scale.setScalar(cur.scale)
       for (const child of solid.children) {
+        if (child.userData.hl) continue
         const mat = (child as THREE.Mesh).material as THREE.Material & {
           opacity: number
           color: THREE.Color
@@ -383,9 +475,16 @@ function Piece({
     // ele sobe para a metade de cima da tela, onde o texto nao chega
     g.position.y = cur.y + (narrow ? 0.7 : 0) + (still ? 0 : Math.cos(t * 0.16) * 0.05)
     if (!still) {
+      // solto, o giro do arrasto perde forca e a peca volta devagar para
+      // a pose desenhada
+      if (!drag.on) {
+        drag.angle += drag.vel
+        drag.vel *= Math.exp(-3 * dt)
+        drag.angle = THREE.MathUtils.damp(drag.angle, 0, 0.6, dt)
+      }
       // o objeto olha de um lado para o outro em vez de rodopiar, senao
       // o robo passa metade do tempo de costas
-      g.rotation.y = Math.sin(t * 0.2) * 0.34
+      g.rotation.y = Math.sin(t * 0.2) * 0.34 + drag.angle
       // so a engrenagem gira. Quando ela sai de cena o angulo volta a
       // zero pelo caminho mais curto, senao a forma seguinte herda a
       // sobra de rotacao e aparece deitada
@@ -409,9 +508,64 @@ function Piece({
       shell.current.style.opacity = String(1 - 0.7 * centered)
     }
 
-    cam.position.z = cur.camZ
-    cam.position.x = -cur.x * 0.1
+    // Camera em orbita em volta da origem: azimute e elevacao da parada
+    // mais a paralaxe do cursor. O deslocamento lateral e o que mantem a
+    // peca na margem em vez de no centro.
+    const az = cur.az + cur.pax
+    const el = cur.el + cur.pel
+    const d = cur.camZ
+    cam.position.set(
+      Math.sin(az) * Math.cos(el) * d - cur.x * 0.1,
+      Math.sin(el) * d,
+      Math.cos(az) * Math.cos(el) * d,
+    )
     cam.lookAt(0, 0, 0)
+    cam.rotateZ(cur.roll)
+    if (Math.abs(cam.fov - cur.fov) > 0.01) {
+      cam.fov = cur.fov
+      cam.updateProjectionMatrix()
+    }
+
+    // Etiqueta: qual parte da peca esta sob o cursor. So com a peca
+    // parada (na virada ela e cacos), quando o cursor mexeu ou enquanto
+    // ha uma parte acesa, para ela apagar se a peca mudar por baixo.
+    if ((pointer.moved || hover.current.part >= 0) && !narrow && !still) {
+      pointer.moved = false
+      const parked = from === to || f < 0.05 || f > 0.95
+      const which = f < 0.5 ? from : to
+      const solid = solids.current[which]
+      let part = -1
+      if (parked && pointer.inside && solid?.visible) {
+        const mesh = solid.children[0] as THREE.Mesh
+        mesh.updateWorldMatrix(true, false)
+        ndc.set(pointer.x, pointer.y)
+        raycaster.setFromCamera(ndc, cam)
+        const hit = raycaster.intersectObject(mesh, false)[0]
+        if (hit && hit.faceIndex != null) part = partAt(shapes[which], hit.faceIndex)
+      }
+      const was = hover.current
+      if (was.shape !== which || was.part !== part) {
+        const old = hls.current[was.shape]
+        if (old) old.visible = false
+        hover.current = { shape: which, part }
+        const hl = hls.current[which]
+        if (hl && part >= 0) {
+          hl.geometry = shapes[which].partEdges[part]
+          hl.visible = true
+        }
+        if (!drag.on) document.body.style.cursor = part >= 0 ? 'grab' : ''
+        if (label.current) {
+          label.current.hidden = part < 0
+          if (part >= 0) {
+            const lang = document.documentElement.lang.startsWith('pt') ? 'pt' : 'en'
+            label.current.textContent = partNames[which][part]?.[lang] ?? ''
+          }
+        }
+      }
+      if (label.current && part >= 0) {
+        label.current.style.transform = `translate(${pointer.px + 18}px, ${pointer.py - 10}px)`
+      }
+    }
   })
 
   return (
@@ -451,6 +605,17 @@ function Piece({
             </mesh>
             <lineSegments geometry={s.edges}>
               <lineBasicMaterial color="#d6d6de" transparent opacity={0} />
+            </lineSegments>
+            {/* a parte sob o cursor, desenhada por cima na cor de acento */}
+            <lineSegments
+              ref={(el) => {
+                hls.current[n] = el
+              }}
+              geometry={s.partEdges[0]}
+              visible={false}
+              userData={{ hl: true }}
+            >
+              <lineBasicMaterial color="#ff5a1f" />
             </lineSegments>
           </group>
         ))}
@@ -516,12 +681,19 @@ function Dust({ count, still }: { count: number; still: boolean }) {
 
 export default function Scene() {
   const shell = useRef<HTMLDivElement>(null)
-  const still =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  const small = typeof window !== 'undefined' && window.innerWidth < 768
+  const label = useRef<HTMLDivElement>(null)
+  const still = useMedia('(prefers-reduced-motion: reduce)')
+  const small = useMedia('(max-width: 767px)')
 
   return (
+    <>
+      {/* etiqueta da parte sob o cursor; segue o mouse */}
+      <div
+        ref={label}
+        hidden
+        className="tag pointer-events-none fixed top-0 left-0 z-30 border border-signal bg-bg px-2.5 py-1.5 text-signal"
+        aria-hidden="true"
+      />
     <div
       ref={shell}
       className="pointer-events-none fixed inset-0 z-0 opacity-35 md:opacity-100"
@@ -540,9 +712,10 @@ export default function Scene() {
         <directionalLight position={[-6, -1, 3]} intensity={0.7} color="#7f9ad6" />
         {/* contraluz: e ela que separa a silhueta do fundo preto */}
         <directionalLight position={[-2, 3, -6]} intensity={2.6} color="#ffb489" />
-        <Piece count={small ? 420 : 2200} still={still} narrow={small} shell={shell} />
+        <Piece count={small ? 420 : 2200} still={still} narrow={small} shell={shell} label={label} />
         <Dust count={small ? 180 : 420} still={still} />
       </Canvas>
     </div>
+    </>
   )
 }

@@ -14,24 +14,40 @@ import * as THREE from 'three'
    three para o bundle, o que quebra o reconhecimento de objetos do R3F. */
 
 export type Cloud = { pos: Float32Array; nor: Float32Array }
-export type Shape = { geo: THREE.BufferGeometry; edges: THREE.BufferGeometry; cloud: Cloud }
+export type Shape = {
+  geo: THREE.BufferGeometry
+  edges: THREE.BufferGeometry
+  cloud: Cloud
+  /** Faixa de vertices de cada primitiva dentro da malha unica, para
+      descobrir em que parte o cursor esta a partir do triangulo acertado. */
+  ranges: { start: number; count: number }[]
+  /** Arestas de cada primitiva sozinha: e o que acende no hover. */
+  partEdges: THREE.BufferGeometry[]
+}
 
 /** Qual objeto aparece em cada secao. O robo abre, reaparece no sobre e
     fecha no contato. */
 export const ORDER = [0, 0, 1, 2, 3, 4, 5, 0]
 
-/** Junta as primitivas numa malha so, mantendo posicao e normal. */
-function merge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
+/** Junta as primitivas numa malha so, mantendo posicao e normal, e
+    anota onde cada uma comecou. */
+function merge(parts: THREE.BufferGeometry[]): {
+  geo: THREE.BufferGeometry
+  ranges: { start: number; count: number }[]
+} {
   const flats = parts.map((p) => (p.index ? p.toNonIndexed() : p))
   let total = 0
   for (const f of flats) total += f.getAttribute('position').count
   const pos = new Float32Array(total * 3)
   const nor = new Float32Array(total * 3)
+  const ranges: { start: number; count: number }[] = []
   let at = 0
   for (const f of flats) {
+    const count = f.getAttribute('position').count
+    ranges.push({ start: at / 3, count })
     pos.set(f.getAttribute('position').array as Float32Array, at)
     nor.set(f.getAttribute('normal').array as Float32Array, at)
-    at += f.getAttribute('position').count * 3
+    at += count * 3
   }
   flats.forEach((f, i) => {
     if (f !== parts[i]) f.dispose()
@@ -40,7 +56,7 @@ function merge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
   const geo = new THREE.BufferGeometry()
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
   geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3))
-  return geo
+  return { geo, ranges }
 }
 
 /** Areas acumuladas, para sortear triangulo grande com mais frequencia
@@ -212,7 +228,7 @@ function crystal(): THREE.BufferGeometry[] {
 const PIECES: { parts: () => THREE.BufferGeometry[]; tiltX?: number; tiltY?: number }[] = [
   { parts: robot },
   { parts: stack, tiltY: 0.5 },
-  { parts: chip, tiltX: -0.5, tiltY: 0.4 },
+  { parts: chip, tiltX: 0.5, tiltY: 0.4 },
   { parts: gear },
   { parts: rocket },
   { parts: crystal, tiltY: 0.3 },
@@ -220,15 +236,35 @@ const PIECES: { parts: () => THREE.BufferGeometry[]; tiltX?: number; tiltY?: num
 
 export function buildShapes(count: number): Shape[] {
   return PIECES.map(({ parts, tiltX, tiltY }) => {
-    const geo = merge(parts())
-    if (tiltX) geo.rotateX(tiltX)
-    if (tiltY) geo.rotateY(tiltY)
+    const raw = parts()
+    const tilt = (g: THREE.BufferGeometry) => {
+      if (tiltX) g.rotateX(tiltX)
+      if (tiltY) g.rotateY(tiltY)
+      return g
+    }
+    // as arestas de cada parte saem antes da fusao, que descarta as
+    // primitivas
+    const partEdges = raw.map((g) => tilt(new THREE.EdgesGeometry(g, 22)))
+    const { geo, ranges } = merge(raw)
+    tilt(geo)
     return {
       geo,
       // 22 graus: guarda a silhueta e as quinas, sem desenhar cada
       // triangulo da malha
       edges: new THREE.EdgesGeometry(geo, 22),
       cloud: sample(geo, count),
+      ranges,
+      partEdges,
     }
   })
+}
+
+/** Em que primitiva cai o triangulo `face` da malha fundida. */
+export function partAt(shape: Shape, face: number): number {
+  const v = face * 3
+  for (let i = 0; i < shape.ranges.length; i++) {
+    const r = shape.ranges[i]
+    if (v >= r.start && v < r.start + r.count) return i
+  }
+  return -1
 }

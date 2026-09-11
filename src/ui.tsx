@@ -1,8 +1,21 @@
 import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react'
-import { useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
-const narrow =
-  typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+/* Media query que acompanha o redimensionamento da janela, em vez de
+   ser lida uma vez so no carregamento. */
+export function useMedia(query: string) {
+  const [match, setMatch] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(query).matches,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const on = () => setMatch(mq.matches)
+    on()
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [query])
+  return match
+}
 
 /* Entrada de secao mais a deriva horizontal.
    `drift` em pixels: o bloco entra deslocado para um lado e sai pelo outro,
@@ -25,6 +38,7 @@ export function Reveal({
   entrance?: boolean
 }) {
   const reduce = useReducedMotion()
+  const narrow = useMedia('(max-width: 767px)')
   const ref = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
     target: ref,
