@@ -683,7 +683,10 @@ export default function Scene() {
   const shell = useRef<HTMLDivElement>(null)
   const label = useRef<HTMLDivElement>(null)
   const still = useMedia('(prefers-reduced-motion: reduce)')
-  const small = useMedia('(max-width: 767px)')
+  // ate 1023px (celular, tablet e navegador em meia tela) a peca sobe
+  // para a faixa livre do topo e fica mais transparente: nessa largura
+  // nao ha margem lateral onde ela caiba sem passar por cima do texto
+  const small = useMedia('(max-width: 1023px)')
 
   return (
     <>
@@ -696,7 +699,7 @@ export default function Scene() {
       />
     <div
       ref={shell}
-      className="pointer-events-none fixed inset-0 z-0 opacity-35 md:opacity-100"
+      className="pointer-events-none fixed inset-0 z-0 opacity-35 lg:opacity-100"
       aria-hidden="true"
     >
       <Canvas
