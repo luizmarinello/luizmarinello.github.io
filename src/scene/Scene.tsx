@@ -4,8 +4,13 @@ import * as THREE from 'three'
 import { scrollState } from './scrollState'
 import { ORDER, buildShapes } from './shapes'
 
-/* Parado numa secao, o que aparece e a malha solida do objeto com as
-   arestas desenhadas por cima. Na virada entre duas secoes a malha some,
+/* A peca e um desenho de engenharia: as arestas carregam a forma e a
+   malha por baixo e so um fantasma, para dar volume. Na folha de tinta
+   o traco e claro; na de papel, escuro. O tom vem de scrollState.tone
+   e e amortecido aqui como todo o resto.
+
+   Parado numa secao, o que aparece e o desenho do objeto com a malha
+   fantasma por baixo. Na virada entre duas secoes a malha some,
    a nuvem de cacos cresce no lugar dela, cada caco viaja da casca de um
    objeto para a casca do proximo, e depois encolhe de volta ate a malha
    seguinte aparecer inteira. A travessia acompanha o scroll 1 para 1;
@@ -25,23 +30,28 @@ type Stage = {
 
 const STAGES: Stage[] = [
   // hero: o robo, a direita
-  { scale: 0.95, exposure: 1.0, glow: 0.25, color: '#6e6e7c', camZ: 4.6, spinZ: 0, x: 2.0, y: 0.1 },
-  // sobre: o mesmo robo, atravessa para a esquerda
-  { scale: 0.88, exposure: 1.0, glow: 0.3, color: '#7b7168', camZ: 4.4, spinZ: 0, x: -2.1, y: 0.2 },
-  // projetos: tres unidades empilhadas, volta para a direita
-  { scale: 0.9, exposure: 1.06, glow: 0.4, color: '#9a5c30', camZ: 4.2, spinZ: 0, x: 2.3, y: -0.05 },
+  { scale: 0.95, exposure: 1.0, glow: 0.25, color: '#5b7cff', camZ: 4.6, spinZ: 0, x: 2.0, y: 0.35 },
+  // sobre: o mesmo robo, cruza para a esquerda, por cima da moldura da foto
+  { scale: 0.88, exposure: 1.0, glow: 0.3, color: '#2b4bff', camZ: 4.4, spinZ: 0, x: -2.3, y: 0.2 },
+  // projetos: tres unidades empilhadas, a direita, por cima dos campos de print
+  { scale: 0.9, exposure: 1.06, glow: 0.4, color: '#2b4bff', camZ: 4.2, spinZ: 0, x: 2.3, y: -0.05 },
   // ia aplicada: o chip em brasa. A pagina inteira clareia aqui, que e a
   // secao que mais vende ele
-  { scale: 0.95, exposure: 1.14, glow: 0.68, color: '#b84d26', camZ: 4.0, spinZ: 0, x: -2.3, y: 0.1 },
-  // ferramentas: a engrenagem, a unica peca que gira de verdade
-  { scale: 0.88, exposure: 1.06, glow: 0.42, color: '#96714c', camZ: 4.2, spinZ: 0.42, x: 2.2, y: -0.05 },
+  { scale: 0.95, exposure: 1.14, glow: 0.68, color: '#ff5a1f', camZ: 4.0, spinZ: 0, x: -2.3, y: 0.1 },
+  // ferramentas: a engrenagem, a unica peca que gira de verdade. Menor e
+  // mais para a borda, para nao passar por cima da lista de nomes
+  { scale: 0.62, exposure: 1.06, glow: 0.42, color: '#5b7cff', camZ: 4.2, spinZ: 0.42, x: 2.9, y: -0.05 },
   // trajetoria: o foguete, a esquerda
-  { scale: 0.85, exposure: 1.0, glow: 0.4, color: '#7b7168', camZ: 4.4, spinZ: 0, x: -2.2, y: 0.1 },
+  { scale: 0.85, exposure: 1.0, glow: 0.4, color: '#2b4bff', camZ: 4.4, spinZ: 0, x: -2.2, y: 0.1 },
   // certificacoes: o cristal, a direita
-  { scale: 0.8, exposure: 1.1, glow: 0.5, color: '#a07846', camZ: 4.4, spinZ: 0.1, x: 2.2, y: 0.15 },
-  // contato: o robo de novo, centralizado e recuado
-  { scale: 1.0, exposure: 1.14, glow: 0.55, color: '#c9552a', camZ: 5.6, spinZ: 0, x: 0.0, y: 0.1 },
+  { scale: 0.8, exposure: 1.1, glow: 0.5, color: '#2b4bff', camZ: 4.4, spinZ: 0.1, x: 2.2, y: 0.15 },
+  // contato: o robo de novo, a direita e recuado, fora do titulo gigante
+  { scale: 1.0, exposure: 1.14, glow: 0.55, color: '#ff5a1f', camZ: 5.6, spinZ: 0, x: 2.2, y: 0.55 },
 ]
+
+/* Traco na folha de tinta e na de papel. */
+const LINE_INK = new THREE.Color('#dfe5ff')
+const LINE_PAPER = new THREE.Color('#0b1020')
 
 const lerp = (a: number, b: number, f: number) => a + (b - a) * f
 const ease = (f: number) => f * f * (3 - 2 * f)
@@ -89,8 +99,8 @@ function Studio() {
       return mesh
     }
 
-    panel('#ff8a4c', 7, 7, [5, 3.5, 4], [0, -Math.PI / 3.4, 0]) // brasa, a chave
-    panel('#3f5f9e', 8, 9, [-6, 0, 2], [0, Math.PI / 3, 0]) // frio, o preenchimento
+    panel('#ff7a4c', 7, 7, [5, 3.5, 4], [0, -Math.PI / 3.4, 0]) // brasa, a chave
+    panel('#3050d0', 8, 9, [-6, 0, 2], [0, Math.PI / 3, 0]) // cobalto, o preenchimento
     panel('#f2f2f6', 12, 2, [0, 6, -3], [-Math.PI / 2.2, 0, 0]) // faixa clara em cima
     panel('#101014', 20, 20, [0, -7, 0], [-Math.PI / 2, 0, 0]) // chao escuro
 
@@ -191,7 +201,8 @@ function Piece({
   const spinQ = useMemo(() => new THREE.Quaternion(), [])
   const colorA = useMemo(() => new THREE.Color(), [])
   const colorB = useMemo(() => new THREE.Color(), [])
-  const live = useRef({ ...STAGES[0] })
+  const line = useMemo(() => new THREE.Color(), [])
+  const live = useRef({ ...STAGES[0], tone: 0 })
   const spinAngle = useRef(0)
 
   useFrame((state, dt) => {
@@ -203,9 +214,11 @@ function Piece({
     if (!g || !sp || !sh || !k || !h) return
 
     const last = STAGES.length - 1
-    const p = THREE.MathUtils.clamp(scrollState.p, 0, 1) * last
+    const p = THREE.MathUtils.clamp(scrollState.stage, 0, last)
     const i = Math.min(Math.floor(p), last - 1)
-    const f = p - i
+    // a peca fica parada nos 28% de cada lado do centro de uma secao e
+    // so vira nos 44% do meio, entre uma secao e a proxima
+    const f = THREE.MathUtils.clamp((p - i - 0.28) / 0.44, 0, 1)
     const a = STAGES[i]
     const b = STAGES[i + 1]
     const from = ORDER[i]
@@ -220,6 +233,7 @@ function Piece({
     cur.spinZ = damp(cur.spinZ, lerp(a.spinZ, b.spinZ, f))
     cur.y = damp(cur.y, lerp(a.y, b.y, f))
     cur.exposure = damp(cur.exposure, lerp(a.exposure, b.exposure, f))
+    cur.tone = damp(cur.tone, scrollState.tone)
     state.gl.toneMappingExposure = cur.exposure
 
     // o quanto o objeto pode andar para o lado depende da largura dele e
@@ -238,6 +252,8 @@ function Piece({
     colorA.lerp(colorB, f)
     k.intensity = 55 + cur.glow * 110
     k.color.copy(colorA)
+    // o traco e o da folha, puxado para a cor da secao conforme a brasa
+    line.copy(LINE_INK).lerp(LINE_PAPER, cur.tone).lerp(colorA, cur.glow * 0.55)
 
     // Quem esta em cena: a malha nas pontas, os cacos no meio. A malha sai
     // antes das arestas e entra depois delas, entao a peca aparece
@@ -270,15 +286,16 @@ function Piece({
           emissive?: THREE.Color
           emissiveIntensity?: number
         }
-        // as arestas ficam claras de proposito: sao elas que desenham a
-        // peca. So a malha acompanha a cor da secao.
+        // sao as arestas que desenham a peca; a malha e so um fantasma
+        // de volume por baixo, mais raso na folha de papel
         if (mat.emissive) {
-          mat.opacity = o
+          mat.opacity = o * (0.16 - cur.tone * 0.1)
           mat.color.lerp(colorA, 1 - Math.exp(-l * dt))
           mat.emissive.lerp(colorA, 1 - Math.exp(-l * dt))
           mat.emissiveIntensity = 0.05 + cur.glow * 0.28
         } else {
-          mat.opacity = oEdge * 0.45
+          mat.opacity = oEdge * 0.9
+          mat.color.lerp(line, 1 - Math.exp(-l * dt))
         }
       }
     })
@@ -348,16 +365,23 @@ function Piece({
       }
       sh.instanceMatrix.needsUpdate = true
       const smat = sh.material as THREE.MeshStandardMaterial
-      smat.color.lerp(colorA, 1 - Math.exp(-l * dt))
-      smat.emissive.lerp(colorA, 1 - Math.exp(-l * dt))
-      smat.emissiveIntensity = 0.04 + cur.glow * 0.2
+      smat.color.lerp(line, 1 - Math.exp(-l * dt))
+      smat.emissive.lerp(line, 1 - Math.exp(-l * dt))
+      smat.emissiveIntensity = 0.15 + cur.glow * 0.3
+    }
+
+    // o halo aditivo nao desenha nada em cima de papel claro
+    {
+      const hm = h.material as THREE.MeshBasicMaterial
+      hm.opacity = 0.15 * (1 - cur.tone)
+      hm.color.copy(colorA)
     }
 
     const t = state.clock.elapsedTime
     g.position.x = cur.x + (still ? 0 : Math.sin(t * 0.21) * 0.07)
     // no celular o objeto nao tem para onde correr na horizontal, entao
-    // ele desce um pouco e sai de tras do texto
-    g.position.y = cur.y + (narrow ? -0.55 : 0) + (still ? 0 : Math.cos(t * 0.16) * 0.05)
+    // ele sobe para a metade de cima da tela, onde o texto nao chega
+    g.position.y = cur.y + (narrow ? 0.7 : 0) + (still ? 0 : Math.cos(t * 0.16) * 0.05)
     if (!still) {
       // o objeto olha de um lado para o outro em vez de rodopiar, senao
       // o robo passa metade do tempo de costas
@@ -382,7 +406,7 @@ function Piece({
     // e volta ao cheio quando esta na margem.
     if (!narrow && shell.current) {
       const centered = 1 - Math.min(1, Math.abs(cur.x) / 1.5)
-      shell.current.style.opacity = String(1 - 0.55 * centered)
+      shell.current.style.opacity = String(1 - 0.7 * centered)
     }
 
     cam.position.z = cur.camZ
@@ -437,12 +461,16 @@ function Piece({
           visible={false}
         >
           <boxGeometry args={[1, 1, 1]} />
+          {/* fragmentos de traco, nao lascas de metal: cor chapada */}
           <meshStandardMaterial
-            color="#9a9aa8"
-            emissive="#9a9aa8"
-            emissiveIntensity={0.1}
-            roughness={0.32}
-            metalness={0.72}
+            color="#dfe5ff"
+            emissive="#dfe5ff"
+            emissiveIntensity={0.3}
+            roughness={1}
+            metalness={0}
+            envMapIntensity={0}
+            transparent
+            opacity={0.5}
             flatShading
           />
         </instancedMesh>
@@ -453,6 +481,7 @@ function Piece({
 
 function Dust({ count, still }: { count: number; still: boolean }) {
   const ref = useRef<THREE.Points>(null)
+  const tone = useRef(0)
   const positions = useMemo(() => {
     const arr = new Float32Array(count * 3)
     for (let i = 0; i < count; i++) {
@@ -467,8 +496,12 @@ function Dust({ count, still }: { count: number; still: boolean }) {
   }, [count])
 
   useFrame((_, dt) => {
-    if (still || !ref.current) return
-    ref.current.rotation.y += dt * 0.02
+    if (!ref.current) return
+    tone.current = THREE.MathUtils.damp(tone.current, scrollState.tone, 3.2, dt)
+    const m = ref.current.material as THREE.PointsMaterial
+    m.color.copy(LINE_INK).lerp(LINE_PAPER, tone.current)
+    m.opacity = 0.25 + tone.current * 0.15
+    if (!still) ref.current.rotation.y += dt * 0.02
   })
 
   return (
@@ -476,7 +509,7 @@ function Dust({ count, still }: { count: number; still: boolean }) {
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
-      <pointsMaterial size={0.013} color="#8d8d98" transparent opacity={0.25} sizeAttenuation />
+      <pointsMaterial size={0.016} transparent opacity={0.25} sizeAttenuation />
     </points>
   )
 }
@@ -491,7 +524,7 @@ export default function Scene() {
   return (
     <div
       ref={shell}
-      className="pointer-events-none fixed inset-0 z-0 opacity-45 md:opacity-100"
+      className="pointer-events-none fixed inset-0 z-0 opacity-35 md:opacity-100"
       aria-hidden="true"
     >
       <Canvas
@@ -507,7 +540,7 @@ export default function Scene() {
         <directionalLight position={[-6, -1, 3]} intensity={0.7} color="#7f9ad6" />
         {/* contraluz: e ela que separa a silhueta do fundo preto */}
         <directionalLight position={[-2, 3, -6]} intensity={2.6} color="#ffb489" />
-        <Piece count={small ? 700 : 2200} still={still} narrow={small} shell={shell} />
+        <Piece count={small ? 420 : 2200} still={still} narrow={small} shell={shell} />
         <Dust count={small ? 180 : 420} still={still} />
       </Canvas>
     </div>
