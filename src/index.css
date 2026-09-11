@@ -1,26 +1,60 @@
-@import '@fontsource-variable/geist';
+@import '@fontsource-variable/bricolage-grotesque/standard.css';
+@import '@fontsource/instrument-serif/400.css';
+@import '@fontsource/instrument-serif/400-italic.css';
 @import '@fontsource-variable/geist-mono';
 @import 'tailwindcss';
 
-/* Tema: dark unico e travado (briefing "dark tech cinematografico").
-   Raio de canto: paineis e imagens 14px, botoes e chips pill. Regra unica da pagina. */
+/* Tema "blueprint": desenho de engenharia. Duas folhas, a de tinta
+   (marinho) e a de papel (creme), e a pagina troca de uma para a outra
+   conforme a secao que esta no centro da tela. Quem manda e o atributo
+   data-tone no <html>; as cores de utilitario abaixo so apontam para as
+   variaveis de tom, entao text-ink e bg-bg mudam sozinhos.
+   Raio de canto: zero. E desenho tecnico, nao app. */
 @theme {
-  --color-bg: #08080a;
-  --color-surface: #0e0e12;
-  --color-line: #1d1d23;
-  --color-ink: #ededf0;
-  --color-muted: #8d8d98;
-  --color-accent: #e8622f;
+  --color-bg: var(--tone-bg);
+  --color-ink: var(--tone-ink);
+  --color-muted: var(--tone-muted);
+  --color-line: var(--tone-line);
+  --color-accent: var(--tone-accent);
+  --color-signal: #ff5a1f;
 
-  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Bricolage Grotesque Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+}
 
-  --radius-panel: 14px;
+:root {
+  --tone-bg: #0b1020;
+  --tone-ink: #eef1ff;
+  --tone-muted: #8b95bd;
+  --tone-line: rgba(238, 241, 255, 0.16);
+  --tone-accent: #5b7cff;
+  --tone-grid: rgba(238, 241, 255, 0.045);
+  color-scheme: dark;
+}
+
+:root[data-tone='paper'] {
+  --tone-bg: #f1ece2;
+  --tone-ink: #0b1020;
+  --tone-muted: #5c6178;
+  --tone-line: rgba(11, 16, 32, 0.18);
+  --tone-accent: #2b4bff;
+  --tone-grid: rgba(11, 16, 32, 0.07);
+  color-scheme: light;
 }
 
 html {
   scroll-behavior: smooth;
-  color-scheme: dark;
+}
+
+/* A troca de folha e uma transicao de meio segundo em cor, fundo e
+   borda. Os estados de hover, que declaram a propria transition, ficam
+   com os 150ms deles. */
+main *,
+header *,
+.chrome * {
+  transition-property: color, background-color, border-color;
+  transition-duration: 0.5s;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -33,33 +67,73 @@ html {
 }
 
 body {
-  /* os blocos derivam na horizontal, entao a pagina nao pode ganhar
-     barra de rolagem lateral por causa disso. clip nao cria um novo
-     container de scroll, o que manteria o position sticky funcionando. */
   overflow-x: clip;
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.5s;
 }
 
 ::selection {
   background: var(--color-accent);
-  color: #08080a;
+  color: var(--color-bg);
 }
 
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 3px;
-  border-radius: 4px;
 }
 
-/* Grao fixo, fora do fluxo de scroll, para nao repintar a GPU a cada frame. */
+/* Folha quadriculada de papel tecnico, fixa atras de tudo. */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  background-color: var(--color-bg);
+  background-image:
+    linear-gradient(var(--tone-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--tone-grid) 1px, transparent 1px);
+  background-size: 72px 72px;
+  transition: background-color 0.5s;
+}
+
 .grain {
   position: fixed;
   inset: 0;
   z-index: 60;
   pointer-events: none;
-  opacity: 0.035;
+  opacity: 0.04;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Titulos de exibicao: Bricolage aberta e apertada. */
+.display {
+  font-weight: 560;
+  letter-spacing: -0.04em;
+  line-height: 0.92;
+  font-variation-settings: 'opsz' 96, 'wdth' 100;
+}
+
+/* Numeral vazado: so o contorno. */
+.outline-num {
+  color: transparent;
+  -webkit-text-stroke: 1px var(--color-line);
+}
+
+/* Etiqueta de desenho tecnico. */
+.tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Campo reservado para imagem: hachura de desenho tecnico. */
+.hatch {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--color-line) 0 1px,
+    transparent 1px 14px
+  );
 }
