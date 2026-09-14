@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import {
   motion,
   useMotionValueEvent,
@@ -12,6 +12,7 @@ import { contact, figs, pick, t, type Lang } from './data'
 import { Button, Corners, Reveal } from './ui'
 import type { ReactNode } from 'react'
 import { About, Ai, Certs, Contact, Path, Projects, Stack } from './sections'
+import { Sheet } from './Sheet'
 import { scrollState } from './scene/scrollState'
 
 // A cena WebGL nao bloqueia o primeiro paint do texto.
@@ -91,23 +92,64 @@ function Chrome({
   lang,
   index,
   progress,
+  marks,
 }: {
   lang: Lang
   index: number
   progress: MotionValue<number>
+  /** Posicao de cada prancha na regua, de 0 a 1. */
+  marks: number[]
 }) {
   const n = String(index + 1).padStart(2, '0')
+  const c = t[lang]
+  // clique na regua: vai para aquele ponto da pagina
+  const seek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    const pct = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))
+    const max = document.documentElement.scrollHeight - window.innerHeight
+    window.scrollTo({ top: pct * max, behavior: 'smooth' })
+  }
   return (
-    <div className="chrome pointer-events-none fixed inset-0 z-40" aria-hidden="true">
+    <div className="chrome pointer-events-none fixed inset-0 z-40">
       <div className="absolute inset-4 md:inset-6">
         <Corners size={18} />
       </div>
-      <div className="tag absolute bottom-7 left-6 hidden items-baseline gap-3 text-muted md:flex md:left-10">
+      <div
+        className="tag absolute bottom-7 left-6 hidden items-baseline gap-3 text-muted md:flex md:left-10"
+        aria-hidden="true"
+      >
         <span className="text-ink">{n}</span>
         <span>/ {String(figs.length).padStart(2, '0')}</span>
         <span className="ml-3">{pick(figs[index], lang)}</span>
       </div>
-      <div className="absolute inset-x-0 bottom-7 mx-auto hidden w-[min(42vw,420px)] md:block">
+      <div className="tag absolute right-6 bottom-7 hidden text-muted/70 lg:block lg:right-10" aria-hidden="true">
+        {c.chromeHint}
+      </div>
+      <div
+        className="pointer-events-auto absolute inset-x-0 bottom-5 mx-auto hidden w-[min(42vw,420px)] cursor-pointer py-2 md:block"
+        onClick={seek}
+        aria-hidden="true"
+      >
+        {/* uma marca por prancha; passar o mouse mostra o nome */}
+        {marks.map((m, i) => (
+          <a
+            key={i}
+            href={`#${SECTIONS[i].id}`}
+            className="group absolute -top-3 z-10 -ml-2 h-8 w-4"
+            onClick={(e) => e.stopPropagation()}
+            aria-label={pick(figs[i], lang)}
+            style={{ left: `${m * 100}%` }}
+          >
+            <span
+              className={`absolute top-3 left-2 h-4 w-px transition duration-150 group-hover:bg-signal ${
+                i === index ? 'bg-signal' : 'bg-ink'
+              }`}
+            />
+            <span className="tag pointer-events-none absolute -top-5 left-2 -translate-x-1/2 border border-signal bg-bg px-1.5 py-0.5 text-signal opacity-0 transition duration-150 group-hover:opacity-100">
+              {pick(figs[i], lang)}
+            </span>
+          </a>
+        ))}
         <div className="flex h-3 items-end justify-between">
           {Array.from({ length: 41 }, (_, i) => (
             <span
@@ -118,7 +160,7 @@ function Chrome({
         </div>
         {/* o marcador anda direto no estilo, sem passar pelo React */}
         <motion.span
-          className="absolute -top-1.5 -ml-px h-6 w-0.5 bg-signal"
+          className="absolute top-0.5 -ml-px h-6 w-0.5 bg-signal"
           style={{ left: useTransform(progress, (v) => `${v * 100}%`) }}
         />
       </div>
@@ -199,7 +241,50 @@ export default function App() {
     typeof navigator !== 'undefined' && navigator.language.startsWith('pt') ? 'pt' : 'en',
   )
   const [index, setIndex] = useState(0)
+  const [marks, setMarks] = useState<number[]>([])
+  const indexRef = useRef(0)
+  indexRef.current = index
   const { scrollY, scrollYProgress } = useScroll()
+
+  // Onde cada prancha cai na regua: o centro da secao, em fracao do
+  // scroll total. Recalcula quando a janela muda e depois das fontes.
+  useEffect(() => {
+    const measure = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight
+      setMarks(
+        SECTIONS.map((sec) => {
+          const el = document.getElementById(sec.id)
+          if (!el) return 0
+          const r = el.getBoundingClientRect()
+          const center = window.scrollY + r.top + r.height / 2 - window.innerHeight / 2
+          return Math.min(1, Math.max(0, center / max))
+        }),
+      )
+    }
+    measure()
+    document.fonts?.ready.then(measure)
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+
+  // Teclado: setas para a prancha anterior e seguinte, L troca o idioma.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as Element).closest?.('input, textarea, select')) return
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        const next = indexRef.current + (e.key === 'ArrowRight' ? 1 : -1)
+        const sec = SECTIONS[next]
+        if (!sec) return
+        e.preventDefault()
+        document.getElementById(sec.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } else if (e.key === 'l' || e.key === 'L') {
+        setLang((l) => (l === 'pt' ? 'en' : 'pt'))
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
 
   useMotionValueEvent(scrollYProgress, 'change', (v) => {
     scrollState.p = v
@@ -262,13 +347,13 @@ export default function App() {
 
   return (
     <>
-      <div className="sheet" aria-hidden="true" />
+      <Sheet />
       <Suspense fallback={null}>
         <Scene />
       </Suspense>
       <div className="grain" />
       <Nav lang={lang} setLang={setLang} active={active} />
-      <Chrome lang={lang} index={index} progress={scrollYProgress} />
+      <Chrome lang={lang} index={index} progress={scrollYProgress} marks={marks} />
       <main className="relative z-10">
         <Hero lang={lang} />
         <About lang={lang} />

@@ -85,16 +85,14 @@ body {
   outline-offset: 3px;
 }
 
-/* Folha quadriculada de papel tecnico, fixa atras de tudo. */
+/* Folha de papel tecnico, fixa atras de tudo. A cor faz a transicao
+   tinta/papel aqui; o quadriculado e um canvas dentro (Sheet.tsx), para
+   as linhas poderem entortar perto do cursor. */
 .sheet {
   position: fixed;
   inset: 0;
   z-index: -10;
   background-color: var(--color-bg);
-  background-image:
-    linear-gradient(var(--tone-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--tone-grid) 1px, transparent 1px);
-  background-size: 72px 72px;
   transition: background-color 0.5s;
 }
 

@@ -15,6 +15,7 @@ import {
   type Lang,
 } from './data'
 import { Button, Frame, Reveal, SectionTitle } from './ui'
+import { scrollState } from './scene/scrollState'
 
 const wrap = 'mx-auto w-full max-w-[1280px] px-5 md:px-8'
 
@@ -71,6 +72,12 @@ export function Projects({ lang }: { lang: Lang }) {
             <article
               id={p.id}
               className="grid scroll-mt-24 gap-8 border-t border-line py-12 md:grid-cols-12 md:gap-10 md:py-16"
+              onPointerEnter={() => {
+                scrollState.focus = i
+              }}
+              onPointerLeave={() => {
+                scrollState.focus = -1
+              }}
             >
               <div className="md:col-span-2">
                 <span className="outline-num display block text-[clamp(4rem,9vw,8.5rem)]">

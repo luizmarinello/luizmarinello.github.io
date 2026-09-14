@@ -23,6 +23,8 @@ export type Shape = {
   ranges: { start: number; count: number }[]
   /** Arestas de cada primitiva sozinha: e o que acende no hover. */
   partEdges: THREE.BufferGeometry[]
+  /** Centro de cada primitiva, para ancorar a etiqueta na peca. */
+  partCenters: THREE.Vector3[]
 }
 
 /** Qual objeto aparece em cada secao. O robo abre, reaparece no sobre e
@@ -255,6 +257,10 @@ export function buildShapes(count: number): Shape[] {
       cloud: sample(geo, count),
       ranges,
       partEdges,
+      partCenters: partEdges.map((e) => {
+        e.computeBoundingBox()
+        return e.boundingBox!.getCenter(new THREE.Vector3())
+      }),
     }
   })
 }

@@ -62,6 +62,9 @@ const STAGES: Stage[] = [
    arrasto em andamento. Fora do React: quem le e o loop de render. */
 const pointer = { x: 0, y: 0, px: 0, py: 0, moved: false, inside: false }
 const drag = { on: false, x0: 0, lastX: 0, vel: 0, angle: 0, moved: false }
+/* Estouro por clique: t vai de 0 a 1 em um segundo e meio e a peca se
+   abre em cacos e se remonta no lugar; -1 e parado. */
+const burst = { t: -1 }
 
 /* Traco na folha de tinta e na de papel. */
 const LINE_INK = new THREE.Color('#dfe5ff')
@@ -218,7 +221,9 @@ function Piece({
   const colorA = useMemo(() => new THREE.Color(), [])
   const colorB = useMemo(() => new THREE.Color(), [])
   const line = useMemo(() => new THREE.Color(), [])
-  const live = useRef({ ...STAGES[0], tone: 0, pax: 0, pel: 0 })
+  const live = useRef({ ...STAGES[0], tone: 0, pax: 0, pel: 0, lx: 0, ly: 0 })
+  const shown = useRef({ shape: -1, part: -1 })
+  const anchor = useMemo(() => new THREE.Vector3(), [])
   const spinAngle = useRef(0)
   const hls = useRef<(THREE.LineSegments | null)[]>([])
   const hover = useRef({ shape: -1, part: -1 })
@@ -258,10 +263,15 @@ function Piece({
       drag.on = false
       document.body.style.cursor = hover.current.part >= 0 ? 'grab' : ''
       document.body.style.userSelect = ''
-      // clique seco numa unidade do rack leva ao projeto dela
-      if (!drag.moved && hover.current.shape === 1) {
-        const id = rackTargets[Math.floor(hover.current.part / 2)]
-        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      // clique seco: numa unidade do rack leva ao projeto dela; em
+      // qualquer outra peca, ela estoura em cacos e se remonta
+      if (!drag.moved && hover.current.part >= 0) {
+        if (hover.current.shape === 1) {
+          const id = rackTargets[Math.floor(hover.current.part / 2)]
+          document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        } else if (burst.t < 0) {
+          burst.t = 0
+        }
       }
     }
     const onLeave = () => {
@@ -350,20 +360,35 @@ function Piece({
     // antes das arestas e entra depois delas, entao a peca aparece
     // desenhada primeiro e so depois enche, e ao sair deixa o desenho para
     // tras por um instante.
-    const meshOut = 1 - ramp(f, 0.03, 0.26)
-    const edgeOut = 1 - ramp(f, 0.1, 0.42)
-    const edgeIn = ramp(f, 0.58, 0.84)
-    const meshIn = ramp(f, 0.78, 0.98)
+    // A peca que esta em cena quando parada. No estouro por clique a
+    // virada e simulada dela para ela mesma: f sobe ate o meio e volta,
+    // e os cacos abrem e fecham no lugar.
+    const which = f < 0.5 ? from : to
+    if (burst.t >= 0) {
+      // dt limitado: o primeiro frame com cacos pode engasgar, e um dt
+      // de um segundo pularia metade do estouro
+      burst.t += Math.min(dt, 0.05) / 1.5
+      if (burst.t >= 1) burst.t = -1
+    }
+    const bursting = burst.t >= 0
+    const fx = bursting ? 0.55 * Math.sin(Math.PI * burst.t) : f
+    const fromX = bursting ? which : from
+    const toX = bursting ? which : to
+
+    const meshOut = 1 - ramp(fx, 0.03, 0.26)
+    const edgeOut = 1 - ramp(fx, 0.1, 0.42)
+    const edgeIn = ramp(fx, 0.58, 0.84)
+    const meshIn = ramp(fx, 0.78, 0.98)
 
     solids.current.forEach((solid, s) => {
       if (!solid) return
       let o = 0
       let oEdge = 0
-      if (from === to) o = oEdge = s === from ? 1 : 0
-      else if (s === from) {
+      if (fromX === toX && !bursting) o = oEdge = s === fromX ? 1 : 0
+      else if (s === fromX) {
         o = meshOut
         oEdge = edgeOut
-      } else if (s === to) {
+      } else if (s === toX) {
         o = meshIn
         oEdge = edgeIn
       }
@@ -392,12 +417,12 @@ function Piece({
       }
     })
 
-    sh.visible = from !== to && f > 0.002 && f < 0.998
+    sh.visible = (bursting || from !== to) && fx > 0.002 && fx < 0.998
     if (sh.visible) {
-      const A = shapes[from].cloud
-      const B = shapes[to].cloud
+      const A = shapes[fromX].cloud
+      const B = shapes[toX].cloud
       const base = 0.042 * cur.scale
-      const low = heights[from]
+      const low = heights[fromX]
 
       for (let n = 0; n < count; n++) {
         const j = n * 3
@@ -406,7 +431,7 @@ function Piece({
         // no objeto: a peca se abre de baixo para cima, como uma onda
         // subindo, em vez de estourar inteira de uma vez.
         const height = (A.pos[j + 1] - low.min) * low.inv
-        const fk = THREE.MathUtils.clamp((f - SPREAD * height) / (1 - SPREAD), 0, 1)
+        const fk = THREE.MathUtils.clamp((fx - SPREAD * height) / (1 - SPREAD), 0, 1)
         const ek = ease(fk)
         const bk = Math.sin(Math.PI * fk)
 
@@ -483,8 +508,12 @@ function Piece({
         drag.angle = THREE.MathUtils.damp(drag.angle, 0, 0.6, dt)
       }
       // o objeto olha de um lado para o outro em vez de rodopiar, senao
-      // o robo passa metade do tempo de costas
-      g.rotation.y = Math.sin(t * 0.2) * 0.34 + drag.angle
+      // o robo passa metade do tempo de costas; e vira um pouco na
+      // direcao do cursor, como quem acompanha quem esta olhando
+      cur.lx = damp(cur.lx, par ? pointer.x * 0.26 : 0)
+      cur.ly = damp(cur.ly, par ? -pointer.y * 0.12 : 0)
+      g.rotation.y = Math.sin(t * 0.2) * 0.34 + drag.angle + cur.lx
+      g.rotation.x = cur.ly
       // so a engrenagem gira. Quando ela sai de cena o angulo volta a
       // zero pelo caminho mais curto, senao a forma seguinte herda a
       // sobra de rotacao e aparece deitada
@@ -526,44 +555,65 @@ function Piece({
       cam.updateProjectionMatrix()
     }
 
-    // Etiqueta: qual parte da peca esta sob o cursor. So com a peca
-    // parada (na virada ela e cacos), quando o cursor mexeu ou enquanto
-    // ha uma parte acesa, para ela apagar se a peca mudar por baixo.
-    if ((pointer.moved || hover.current.part >= 0) && !narrow && !still) {
-      pointer.moved = false
-      const parked = from === to || f < 0.05 || f > 0.95
-      const which = f < 0.5 ? from : to
+    // Etiqueta. Quem acende e o cursor sobre a peca; sem cursor, a linha
+    // da lista de projetos que ele estiver lendo acende a unidade do
+    // rack. So com a peca parada: na virada e no estouro ela e cacos.
+    if (!narrow && !still) {
+      const parked = !bursting && (from === to || f < 0.05 || f > 0.95)
       const solid = solids.current[which]
-      let part = -1
-      if (parked && pointer.inside && solid?.visible) {
-        const mesh = solid.children[0] as THREE.Mesh
-        mesh.updateWorldMatrix(true, false)
-        ndc.set(pointer.x, pointer.y)
-        raycaster.setFromCamera(ndc, cam)
-        const hit = raycaster.intersectObject(mesh, false)[0]
-        if (hit && hit.faceIndex != null) part = partAt(shapes[which], hit.faceIndex)
+      if (pointer.moved || (hover.current.part >= 0 && !parked)) {
+        pointer.moved = false
+        let part = -1
+        if (parked && pointer.inside && solid?.visible) {
+          const mesh = solid.children[0] as THREE.Mesh
+          mesh.updateWorldMatrix(true, false)
+          ndc.set(pointer.x, pointer.y)
+          raycaster.setFromCamera(ndc, cam)
+          const hit = raycaster.intersectObject(mesh, false)[0]
+          if (hit && hit.faceIndex != null) part = partAt(shapes[which], hit.faceIndex)
+        }
+        hover.current = { shape: which, part }
+        if (!drag.on) document.body.style.cursor = part >= 0 ? 'grab' : ''
       }
-      const was = hover.current
-      if (was.shape !== which || was.part !== part) {
+
+      let shape = hover.current.shape
+      let part = hover.current.part
+      const fromRow = part < 0 && parked && which === 1 && scrollState.focus >= 0
+      if (fromRow) {
+        shape = 1
+        part = scrollState.focus * 2
+      }
+
+      const was = shown.current
+      if (was.shape !== shape || was.part !== part) {
         const old = hls.current[was.shape]
         if (old) old.visible = false
-        hover.current = { shape: which, part }
-        const hl = hls.current[which]
+        shown.current = { shape, part }
+        const hl = hls.current[shape]
         if (hl && part >= 0) {
-          hl.geometry = shapes[which].partEdges[part]
+          hl.geometry = shapes[shape].partEdges[part]
           hl.visible = true
         }
-        if (!drag.on) document.body.style.cursor = part >= 0 ? 'grab' : ''
         if (label.current) {
           label.current.hidden = part < 0
           if (part >= 0) {
             const lang = document.documentElement.lang.startsWith('pt') ? 'pt' : 'en'
-            label.current.textContent = partNames[which][part]?.[lang] ?? ''
+            label.current.textContent = partNames[shape][part]?.[lang] ?? ''
           }
         }
       }
       if (label.current && part >= 0) {
-        label.current.style.transform = `translate(${pointer.px + 18}px, ${pointer.py - 10}px)`
+        let px = pointer.px + 18
+        let py = pointer.py - 10
+        if (fromRow && solid) {
+          // ancora a etiqueta na propria unidade, projetada na tela
+          anchor.copy(shapes[shape].partCenters[part])
+          solid.localToWorld(anchor)
+          anchor.project(cam)
+          px = ((anchor.x + 1) / 2) * window.innerWidth + 14
+          py = ((1 - anchor.y) / 2) * window.innerHeight - 10
+        }
+        label.current.style.transform = `translate(${px}px, ${py}px)`
       }
     }
   })
