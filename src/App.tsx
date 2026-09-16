@@ -32,10 +32,14 @@ const SECTIONS: { id: string }[] = [
   { id: 'contato' },
 ]
 
-/* O fundo desliza entre tons de azul conforme a pagina desce: marinho
-   fechado no topo, abre um pouco no meio e fecha de novo no fim. */
-const BG_STOPS = [0, 0.3, 0.6, 1]
-const BG_TONES = ['#0b1020', '#12204a', '#0a1a3d', '#050915']
+/* O fundo desliza entre tons de azul, um por prancha. E uma viagem so,
+   sem vai-e-vem: sai do quase preto do topo, vira marinho, depois
+   indigo, e termina o corpo da pagina num azul de mar profundo antes de
+   fechar de novo no contato. O que faz a troca ser vista nao e o
+   brilho, que tem que continuar baixo para o texto claro aguentar, e o
+   giro de matiz: marinho e mar sao azuis distintos na mesma escuridao. */
+const BG_TONES = ['#05070f', '#0a1430', '#101d4d', '#1a1f4e', '#12294f', '#0d3352', '#0b3d5c', '#04080f']
+const BG_STOPS = BG_TONES.map((_, i) => i / (BG_TONES.length - 1))
 
 function Nav({ lang, setLang, active }: { lang: Lang; setLang: (l: Lang) => void; active: string }) {
   const c = t[lang]

@@ -4,12 +4,10 @@
    p: progresso da pagina, 0 a 1.
    stage: em qual prancha a peca esta, continuo. 2.0 e parado no centro
    da terceira secao; 2.5 e no meio da virada para a quarta. Vem da
-   posicao real das secoes, nao de uma divisao igual do scroll.
-   tone: 0 na folha de tinta, 1 na de papel. */
+   posicao real das secoes, nao de uma divisao igual do scroll. */
 export const scrollState = {
   p: 0,
   stage: 0,
-  tone: 0,
   /** Unidade do rack (0, 1, 2) cuja linha da lista de projetos esta sob
       o cursor; -1 quando nenhuma. Acende a unidade na peca 3D. */
   focus: -1,
