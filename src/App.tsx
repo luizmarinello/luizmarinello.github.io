@@ -20,19 +20,22 @@ const Scene = lazy(() => import('./scene/Scene'))
 
 const wrap = 'mx-auto w-full max-w-[1280px] px-5 md:px-8'
 
-/* As oito pranchas, na ordem do scroll, e em que folha cada uma vive.
-   Tinta e papel se alternam para a pagina respirar; a de IA fica na
-   tinta de proposito, e la que a brasa da peca precisa de fundo escuro. */
-const SECTIONS: { id: string; paper: boolean }[] = [
-  { id: 'top', paper: false },
-  { id: 'sobre', paper: true },
-  { id: 'projetos', paper: true },
-  { id: 'ia', paper: false },
-  { id: 'ferramentas', paper: false },
-  { id: 'trajetoria', paper: true },
-  { id: 'certificacoes', paper: true },
-  { id: 'contato', paper: false },
+/* As oito pranchas, na ordem do scroll. */
+const SECTIONS: { id: string }[] = [
+  { id: 'top' },
+  { id: 'sobre' },
+  { id: 'projetos' },
+  { id: 'ia' },
+  { id: 'ferramentas' },
+  { id: 'trajetoria' },
+  { id: 'certificacoes' },
+  { id: 'contato' },
 ]
+
+/* O fundo desliza entre tons de azul conforme a pagina desce: marinho
+   fechado no topo, abre um pouco no meio e fecha de novo no fim. */
+const BG_STOPS = [0, 0.3, 0.6, 1]
+const BG_TONES = ['#0b1020', '#12204a', '#0a1a3d', '#050915']
 
 function Nav({ lang, setLang, active }: { lang: Lang; setLang: (l: Lang) => void; active: string }) {
   const c = t[lang]
@@ -290,6 +293,11 @@ export default function App() {
     scrollState.p = v
   })
 
+  const bg = useTransform(scrollYProgress, BG_STOPS, BG_TONES)
+  useMotionValueEvent(bg, 'change', (c) => {
+    document.documentElement.style.setProperty('--tone-bg', c)
+  })
+
   // A peca 3D para no centro de cada secao e so vira entre um centro e
   // o proximo. Medir as secoes a cada scroll custa oito leituras de
   // retangulo, e dispensa recalcular em resize.
@@ -311,8 +319,7 @@ export default function App() {
   })
 
   // A prancha atual e a ultima da lista que cruza a faixa central da
-  // tela. Ela decide o contador, o link aceso na barra e em que folha
-  // (tinta ou papel) a pagina esta.
+  // tela. Ela decide o contador e o link aceso na barra.
   useEffect(() => {
     const seen = new Map<string, boolean>()
     const io = new IntersectionObserver(
@@ -332,12 +339,6 @@ export default function App() {
     }
     return () => io.disconnect()
   }, [])
-
-  useEffect(() => {
-    const paper = SECTIONS[index].paper
-    document.documentElement.dataset.tone = paper ? 'paper' : 'ink'
-    scrollState.tone = paper ? 1 : 0
-  }, [index])
 
   useEffect(() => {
     document.documentElement.lang = lang === 'pt' ? 'pt-BR' : 'en'

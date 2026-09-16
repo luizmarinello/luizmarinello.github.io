@@ -4,11 +4,10 @@
 @import '@fontsource-variable/geist-mono';
 @import 'tailwindcss';
 
-/* Tema "blueprint": desenho de engenharia. Duas folhas, a de tinta
-   (marinho) e a de papel (creme), e a pagina troca de uma para a outra
-   conforme a secao que esta no centro da tela. Quem manda e o atributo
-   data-tone no <html>; as cores de utilitario abaixo so apontam para as
-   variaveis de tom, entao text-ink e bg-bg mudam sozinhos.
+/* Tema "blueprint": desenho de engenharia numa folha de tinta marinho.
+   O fundo (--tone-bg) desliza entre tons de azul conforme o scroll,
+   escrito inline no <html> pelo App; as cores de utilitario abaixo so
+   apontam para as variaveis de tom.
    Raio de canto: zero. E desenho tecnico, nao app. */
 @theme {
   --color-bg: var(--tone-bg);
@@ -33,28 +32,8 @@
   color-scheme: dark;
 }
 
-:root[data-tone='paper'] {
-  --tone-bg: #f1ece2;
-  --tone-ink: #0b1020;
-  --tone-muted: #5c6178;
-  --tone-line: rgba(11, 16, 32, 0.18);
-  --tone-accent: #2b4bff;
-  --tone-grid: rgba(11, 16, 32, 0.07);
-  color-scheme: light;
-}
-
 html {
   scroll-behavior: smooth;
-}
-
-/* A troca de folha e uma transicao de meio segundo em cor, fundo e
-   borda. Os estados de hover, que declaram a propria transition, ficam
-   com os 150ms deles. */
-main *,
-header *,
-.chrome * {
-  transition-property: color, background-color, border-color;
-  transition-duration: 0.5s;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -72,7 +51,6 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  transition: background-color 0.5s;
 }
 
 ::selection {
@@ -85,15 +63,14 @@ body {
   outline-offset: 3px;
 }
 
-/* Folha de papel tecnico, fixa atras de tudo. A cor faz a transicao
-   tinta/papel aqui; o quadriculado e um canvas dentro (Sheet.tsx), para
-   as linhas poderem entortar perto do cursor. */
+/* Folha de papel tecnico, fixa atras de tudo. O quadriculado e um
+   canvas dentro (Sheet.tsx), para as linhas poderem entortar perto do
+   cursor. */
 .sheet {
   position: fixed;
   inset: 0;
   z-index: -10;
   background-color: var(--color-bg);
-  transition: background-color 0.5s;
 }
 
 .grain {

@@ -4,7 +4,7 @@ import { useMedia } from './ui'
 /* Folha quadriculada de papel tecnico, desenhada num canvas para as
    linhas poderem entortar: perto do cursor elas afundam para dentro,
    como a malha de espaco-tempo dos desenhos de relatividade. A cor de
-   fundo fica no div de fora, que e quem faz a transicao tinta/papel. */
+   fundo fica no div de fora. */
 
 /** Passo da malha, raio do poco e o quanto a linha afunda no centro. */
 const STEP = 72
@@ -117,16 +117,12 @@ export function Sheet() {
 
     resize()
     window.addEventListener('resize', resize)
-    // a troca de folha muda as cores das variaveis: redesenha
-    const tone = new MutationObserver(draw)
-    tone.observe(document.documentElement, { attributes: true, attributeFilter: ['data-tone'] })
     if (!still) {
       window.addEventListener('pointermove', move)
       document.addEventListener('pointerleave', leave)
     }
     return () => {
       cancelAnimationFrame(raf)
-      tone.disconnect()
       window.removeEventListener('resize', resize)
       window.removeEventListener('pointermove', move)
       document.removeEventListener('pointerleave', leave)
