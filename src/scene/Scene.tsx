@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { scrollState } from './scrollState'
@@ -230,11 +230,36 @@ function Piece({
   const hover = useRef({ shape: -1, part: -1 })
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
   const ndc = useMemo(() => new THREE.Vector2(), [])
+  const camera = useThree((s) => s.camera)
+  /* O que o loop de render sabe e o toque precisa: qual forma esta em
+     cena e se ela esta parada. No mouse o raycast roda no frame seguinte
+     ao movimento; no toque nao ha movimento antes do dedo descer, entao
+     o pointerdown tem que medir na hora. */
+  const frame = useRef({ which: 0, parked: true })
 
-  /* Mouse: paralaxe de camera, etiqueta da parte sob o cursor e arrasto
-     para girar. So no desktop; no toque arrastar e rolar a pagina. */
+  /** Qual parte da peca esta sob o ponteiro: -1 se nenhuma, ou se a
+      peca esta em cacos. Escreve em hover. */
+  const pick = useCallback(() => {
+    const { which, parked } = frame.current
+    const solid = solids.current[which]
+    let part = -1
+    if (parked && pointer.inside && solid?.visible) {
+      const mesh = solid.children[0] as THREE.Mesh
+      mesh.updateWorldMatrix(true, false)
+      ndc.set(pointer.x, pointer.y)
+      raycaster.setFromCamera(ndc, camera)
+      const hit = raycaster.intersectObject(mesh, false)[0]
+      if (hit && hit.faceIndex != null) part = partAt(shapes[which], hit.faceIndex)
+    }
+    hover.current = { shape: which, part }
+  }, [camera, ndc, raycaster, shapes])
+
+  /* Ponteiro: paralaxe de camera, etiqueta da parte sob o cursor e
+     arrasto para girar. No toque, um toque na peca estoura ela e o
+     arrasto horizontal gira; o vertical continua rolando a pagina, que
+     e o que touch-action: pan-y no body garante. */
   useEffect(() => {
-    if (narrow || still) return
+    if (still) return
     const onMove = (e: PointerEvent) => {
       pointer.x = (e.clientX / window.innerWidth) * 2 - 1
       pointer.y = -(e.clientY / window.innerHeight) * 2 + 1
@@ -249,20 +274,29 @@ function Piece({
       }
     }
     const onDown = (e: PointerEvent) => {
-      // so pega a peca se o cursor estiver sobre ela; texto continua
-      // selecionavel no resto da pagina
-      if (hover.current.part < 0 || e.button !== 0) return
+      if (e.button !== 0) return
       if ((e.target as Element).closest?.('a, button')) return
+      if (e.pointerType === 'touch') {
+        // o dedo nao passou por cima antes de descer: mede agora
+        pointer.x = (e.clientX / window.innerWidth) * 2 - 1
+        pointer.y = -(e.clientY / window.innerHeight) * 2 + 1
+        pointer.px = e.clientX
+        pointer.py = e.clientY
+        pointer.inside = true
+        pick()
+      }
+      // so pega a peca se o ponteiro estiver sobre ela; texto continua
+      // selecionavel no resto da pagina
+      if (hover.current.part < 0) return
       drag.on = true
       drag.moved = false
       drag.x0 = drag.lastX = e.clientX
       document.body.style.cursor = 'grabbing'
       document.body.style.userSelect = 'none'
     }
-    const onUp = () => {
+    const onUp = (e: PointerEvent) => {
       if (!drag.on) return
       drag.on = false
-      document.body.style.cursor = hover.current.part >= 0 ? 'grab' : ''
       document.body.style.userSelect = ''
       // clique seco: numa unidade do rack leva ao projeto dela; em
       // qualquer outra peca, ela estoura em cacos e se remonta
@@ -274,6 +308,18 @@ function Piece({
           burst.t = 0
         }
       }
+      if (e.pointerType === 'touch') {
+        // dedo levantou: nao ha mais nada "sob o ponteiro"
+        hover.current = { shape: hover.current.shape, part: -1 }
+        pointer.inside = false
+      }
+      document.body.style.cursor = hover.current.part >= 0 ? 'grab' : ''
+    }
+    // o navegador tomou o gesto para rolar a pagina: solta o arrasto sem
+    // tratar como clique
+    const onCancel = (e: PointerEvent) => {
+      drag.moved = true
+      onUp(e)
     }
     const onLeave = () => {
       pointer.inside = false
@@ -285,18 +331,20 @@ function Piece({
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerdown', onDown)
     window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onCancel)
     document.addEventListener('pointerleave', onLeave)
     document.addEventListener('pointerenter', onEnter)
     return () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerdown', onDown)
       window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onCancel)
       document.removeEventListener('pointerleave', onLeave)
       document.removeEventListener('pointerenter', onEnter)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
-  }, [narrow, still])
+  }, [still, pick])
 
   useFrame((state, dt) => {
     const g = group.current
@@ -555,25 +603,18 @@ function Piece({
       cam.updateProjectionMatrix()
     }
 
-    // Etiqueta. Quem acende e o cursor sobre a peca; sem cursor, a linha
-    // da lista de projetos que ele estiver lendo acende a unidade do
-    // rack. So com a peca parada: na virada e no estouro ela e cacos.
-    if (!narrow && !still) {
+    // Etiqueta. Quem acende e o ponteiro sobre a peca; sem ponteiro, a
+    // linha da lista de projetos que ele estiver lendo acende a unidade
+    // do rack. So com a peca parada: na virada e no estouro ela e cacos.
+    if (!still) {
       const parked = !bursting && (from === to || f < 0.05 || f > 0.95)
+      frame.current.which = which
+      frame.current.parked = parked
       const solid = solids.current[which]
       if (pointer.moved || (hover.current.part >= 0 && !parked)) {
         pointer.moved = false
-        let part = -1
-        if (parked && pointer.inside && solid?.visible) {
-          const mesh = solid.children[0] as THREE.Mesh
-          mesh.updateWorldMatrix(true, false)
-          ndc.set(pointer.x, pointer.y)
-          raycaster.setFromCamera(ndc, cam)
-          const hit = raycaster.intersectObject(mesh, false)[0]
-          if (hit && hit.faceIndex != null) part = partAt(shapes[which], hit.faceIndex)
-        }
-        hover.current = { shape: which, part }
-        if (!drag.on) document.body.style.cursor = part >= 0 ? 'grab' : ''
+        pick()
+        if (!drag.on) document.body.style.cursor = hover.current.part >= 0 ? 'grab' : ''
       }
 
       let shape = hover.current.shape

@@ -47,6 +47,10 @@ html {
 
 body {
   overflow-x: clip;
+  /* No toque, arrastar a peca 3D na horizontal gira ela. Sem isto o
+     navegador cancela o gesto para rolar; pan-y deixa o dedo vertical
+     rolando e o pinch continua ampliando. */
+  touch-action: pan-y pinch-zoom;
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);

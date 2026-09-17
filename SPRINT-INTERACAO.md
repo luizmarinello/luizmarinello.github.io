@@ -42,7 +42,7 @@ efeito novo.
 
 ## Bloco 1 — o que falta e dói
 
-### 1.1 A peça no celular (4h) — o maior buraco da lista
+### 1.1 A peça no celular (4h) — o maior buraco da lista  ✅ feito em 17/09/2026
 Hoje `if (narrow || still) return` mata ponteiro, arrasto, clique, etiqueta e
 raycast em qualquer tela até 1023px, e a peça ainda fica a 35% de opacidade.
 No telefone o site perde exatamente aquilo que o diferencia de um template.
@@ -53,8 +53,27 @@ com `touch-action: pan-y` na camada da cena para o dedo vertical continuar
 rolando a página. O raycast por toque roda uma vez por `pointerdown`, não a
 cada movimento: é o custo de um toque, não de um loop.
 
-Risco honesto: 420 cacos e raycast em telefone fraco. Este item **depende do
-6.2** — a peça no celular nunca foi vista por mim rodando de verdade.
+**Entregue com duas diferenças do plano.** A condição deixou de ser a largura
+da tela e passou a ser `pointerType === 'touch'`: um notebook com tela de
+toque a 1280px também não tem movimento antes do dedo descer, e um mouse num
+tablet tem. E o `touch-action: pan-y pinch-zoom` foi para o `body`, não para
+a camada da cena — a camada tem `pointer-events: none`, então o toque nunca
+chega nela; quem recebe o gesto é a página embaixo. O `pinch-zoom` fica para
+o zoom de acessibilidade continuar funcionando.
+
+**O que faltava e não estava no plano:** `pointercancel`. Quando o navegador
+decide que o gesto é rolagem, ele não manda `pointerup` — manda `cancel`. Sem
+tratar isso, o primeiro dedo que descesse sobre a peça e rolasse deixaria o
+arrasto ligado para sempre. Entrou como "soltar sem clicar".
+
+Verificado no Playwright com eventos sintéticos de toque, contando frames em
+vez de milissegundos (o estouro avança por frame): toque seco pega e estoura,
+durante o estouro o toque não pega, depois volta a pegar; `cancel` solta sem
+estourar; arrasto horizontal não vira clique. O caminho do mouse no desktop
+foi conferido do mesmo jeito e não mudou de comportamento.
+
+A opacidade de 35% ficou como estava: no telefone de verdade a peça está
+visível e a rolagem está lisa (6.2).
 
 ### 1.2 Ficha do projeto que abre no lugar (4h)
 Os três projetos são sistemas internos: não há link de demo nem repositório
@@ -183,11 +202,11 @@ Herdado da sprint anterior e **ainda aberto**. Cada item do Bloco 1 e do Bloco
 4 soma trabalho por frame; somar no escuro é apostar na máquina de quem te
 avalia.
 
-| # | Item | Esforço |
-|---|---|---|
-| 6.1 | FPS em três larguras, mais Lighthouse | 2h |
-| 6.2 | A peça 3D vista num celular de verdade — nunca foi | 1h |
-| 6.3 | Orçamento de ponteiro: tudo que reage ao mouse passa por um `pointermove` só | 1h |
+| # | Item | Esforço | |
+|---|---|---|---|
+| 6.1 | FPS em três larguras, mais Lighthouse | 2h | |
+| 6.2 | A peça 3D vista num celular de verdade — nunca foi | 1h | ✅ 17/09: visível e lisa |
+| 6.3 | Orçamento de ponteiro: tudo que reage ao mouse passa por um `pointermove` só | 1h | |
 
 O 6.3 vira obrigatório se o Bloco 4 entrar inteiro: hoje a malha do fundo, a
 paralaxe da câmera e o raycast da etiqueta já leem o ponteiro por caminhos
